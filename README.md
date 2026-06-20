@@ -5,9 +5,13 @@
 hook → splice client↔upstream bidirectionally → close, with **no Go netpoller on any data-plane
 fd** (listener, client, or upstream). Built for [riptide](https://github.com/thealonlevi).
 
-> **Status: pre-gate.** We are building the minimal B1+B2 kill-gate first — does the mechanism even
-> work — before committing to the full library. See [`RELAY_PLAN.md`](RELAY_PLAN.md) for the plan
-> of record and [`gate/DESIGN.md`](gate/DESIGN.md) for the gate measurement design.
+> **Status: gate ✅ GO (dev-grade).** The B1+B2 kill-gate is built and passing on a single-box
+> loopback dev rig: **B1** — the io_uring relay has **zero** epoll fd-registration symbols (the
+> baseline has them); **B2** — **1.58× conn/s-per-core** and **1.55× fewer instructions/conn** than
+> the netpoller baseline; byte-audit clean across all reps. B1 (epoll elimination) is conclusive
+> here; B2 is the dev-grade ratio. Measurement-grade absolutes (and B3–B9) need real hardware.
+> See [`RELAY_PLAN.md`](RELAY_PLAN.md), [`gate/DESIGN.md`](gate/DESIGN.md), and the latest
+> [`gate/results/`](gate/results/) `SUMMARY.md`.
 
 ## The one number that decides adoption
 

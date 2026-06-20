@@ -17,7 +17,11 @@
 perf.data*
 *.prof
 *.svg
-/gate/results/
+# Keep curated gate results (SUMMARY.md, metrics.csv, env.txt, *_report.txt,
+# b1 files) but never the bulky perf binaries or per-rep raw dumps.
+gate/results/**/*.perfdata
+gate/results/**/*_load_*.json
+gate/results/**/*_perf_*.csv
 
 # editor / OS
 .idea/
