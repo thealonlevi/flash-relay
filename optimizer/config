@@ -1,0 +1,48 @@
+# optimizer/config — the FIXED rules of the game (replicates flashaccept's research/harness/config,
+# tuned for the two-fd relay). The optimizer reads these but MUST NOT change them.
+
+# --- topology / core budget (this box: 13 cores, single socket) -------------
+CORES=1
+SUT_CPU=6            # the io_uring relay (the thing measured), 1 core
+SINK_CPU=7          # upstream sink
+LG_CPUS=9,10,11,12  # loadgen (must out-supply the SUT)
+
+# --- ports (reserved in sysctl so the churn storm can't grab them) ----------
+RPORT=18000         # relay listen
+SPORT=18100         # sink listen
+DPORT=18200         # relay listen for the duplex correctness smoke
+EPORT=18300         # echo sink for the duplex smoke
+
+# --- workload (B2-style churn, CPU-bound on loopback) -----------------------
+REQLEN=64
+REPLYLEN=256
+MEASURE_CONNS=512   # FIXED in-flight for the scored measurement (low instr/conn noise)
+AUTHCPU=5us         # realistic decision hook cost (LOCKED contract; see internal/hook)
+WARMUP=2
+MEASURE=4
+N=3                 # reps per scored config; score = mean(1e9/instr_per_conn)
+SETTLE=1
+
+# --- anti-cheat gate (any failure => score 0) -------------------------------
+DROP_CEILING=0.001  # connection failure rate ceiling
+TWO_FD_TOL=0.10     # sink-served must be within 10% of completed (proves it dialed upstream)
+DUPLEX_SMOKE_CONNS=10  # long-lived echo conns that must all succeed (duplex not broken)
+
+# --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------
+ALLOWED_PATHS="gate/internal/uring gate/cmd/relay-uring"
+
+# --- optimizer loop knobs ---------------------------------------------------
+EPSILON=0.03        # promote only if >3% better than champion (above noise)
+PATIENCE=50         # configs without improvement => plateau => stop
+K=15                # re-check baseline (control drift) every K iterations
+OPT_MODEL=""        # "" = claude account default (Max); or "opus"/"sonnet"
+ITER_TIMEOUT=900    # 15 min per claude -p iteration
+CTX_ROTATE_TOKENS=120000
+
+# --- paths ------------------------------------------------------------------
+CH_DB="flashrelay"
+RESULTS_DIR="optimizer/results"
+BEST="optimizer/results/BEST.json"
+OPT_BRANCH="optimizer-run"
+
+[ -f optimizer/config.local ] && . optimizer/config.local

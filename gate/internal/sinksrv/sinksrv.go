@@ -7,14 +7,23 @@
 package sinksrv
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/thealonlevi/flash-relay/gate/internal/proto"
 )
+
+func writeStat(path string, n uint64) {
+	tmp := path + ".tmp"
+	if os.WriteFile(tmp, []byte(fmt.Sprintf("served=%d\n", n)), 0o644) == nil {
+		_ = os.Rename(tmp, path)
+	}
+}
 
 // ListenAndServeEcho serves a long-lived ECHO upstream on addr: every accepted
 // connection echoes whatever it receives until the peer closes. Used by B3
@@ -46,8 +55,10 @@ func ListenAndServeEcho(addr string) error {
 }
 
 // ListenAndServe serves the sink protocol on addr until the listener errors.
-// Blocks. Logs counters every 2s.
-func ListenAndServe(addr string, reqLen, replyLen int) error {
+// Blocks. Logs counters every 2s. If statsPath != "", atomically writes
+// 'served=<n>' there every 250ms (the optimizer referee uses this to prove the
+// relay actually dialed upstream — the two-fd anti-cheat check).
+func ListenAndServe(addr string, reqLen, replyLen int, statsPath string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
@@ -62,6 +73,13 @@ func ListenAndServe(addr string, reqLen, replyLen int) error {
 			log.Printf("sink served=%d auditFail=%d errs=%d", served.Load(), auditFail.Load(), errs.Load())
 		}
 	}()
+	if statsPath != "" {
+		go func() {
+			for range time.Tick(250 * time.Millisecond) {
+				writeStat(statsPath, served.Load())
+			}
+		}()
+	}
 
 	for {
 		c, err := ln.Accept()

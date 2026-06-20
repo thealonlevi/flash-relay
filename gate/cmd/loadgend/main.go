@@ -38,7 +38,7 @@ func main() {
 	flag.Parse()
 
 	if *sinkAddr != "" {
-		go func() { log.Fatalf("sink: %v", sinksrv.ListenAndServe(*sinkAddr, *reqLen, *replyLen)) }()
+		go func() { log.Fatalf("sink: %v", sinksrv.ListenAndServe(*sinkAddr, *reqLen, *replyLen, "")) }()
 	}
 
 	var busy sync.Mutex // one storm at a time

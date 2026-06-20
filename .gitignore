@@ -32,3 +32,6 @@ gate/results/**/*_perf_*.csv
 .vscode/
 *.swp
 .DS_Store
+
+# optimizer runtime state (champion, logs, history) — not committed
+optimizer/results/

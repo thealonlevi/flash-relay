@@ -17,10 +17,11 @@ func main() {
 	reqLen := flag.Int("reqlen", proto.DefaultReqLen, "expected request bytes")
 	replyLen := flag.Int("replylen", proto.DefaultReplyLen, "reply bytes to send")
 	echo := flag.Bool("echo", false, "long-lived echo mode (for duplex/B3) instead of one-shot reply")
+	statsFile := flag.String("statsfile", "", "if set, atomically write 'served=<n>' here every 250ms (optimizer two-fd anti-cheat)")
 	flag.Parse()
 
 	if *echo {
 		log.Fatal(sinksrv.ListenAndServeEcho(*addr))
 	}
-	log.Fatal(sinksrv.ListenAndServe(*addr, *reqLen, *replyLen))
+	log.Fatal(sinksrv.ListenAndServe(*addr, *reqLen, *replyLen, *statsFile))
 }
