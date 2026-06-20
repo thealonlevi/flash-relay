@@ -52,9 +52,11 @@ while [ "$iter" -lt "$MAX_ITERS" ]; do
   LOG "claude in_tok=$intok cost=\$$cost hyp='${HYP:0:70}'"
   [ "${intok:-0}" -gt "$CTX_ROTATE_TOKENS" ] && { LOG "ctx>$CTX_ROTATE_TOKENS -> rotate session"; SID=""; }
 
-  # enforce the LOCKED contract: every changed file must be under ALLOWED_PATHS
-  changed=$(git status --porcelain | awk '{print $2}')
-  [ -z "$changed" ] && { LOG "no changes -> skip measure"; continue; }
+  # enforce the LOCKED contract: only gate/ changes are considered/committed.
+  # (Scope to gate/ so supervisor files like optimizer/MONITOR.md and .gitignore
+  # don't get mistaken for optimizer edits. ALLOWED_PATHS then locks within gate/.)
+  changed=$(git status --porcelain -- gate | awk '{print $2}')
+  [ -z "$changed" ] && { LOG "no gate changes -> skip measure"; continue; }
   viol=0
   for f in $changed; do ok=0; for p in $ALLOWED_PATHS; do case "$f" in $p/*) ok=1;; esac; done; [ "$ok" = 0 ] && { LOG "VIOLATION edit outside allowed: $f"; viol=1; }; done
   [ "$viol" = 1 ] && { wt_revert; no_improve=$((no_improve+1)); continue; }
