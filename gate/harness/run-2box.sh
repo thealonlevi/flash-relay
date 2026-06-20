@@ -34,15 +34,25 @@ OUT=${OUT:-results/2box-$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
 echo "SUT=$BOX1_IP:$RPORT  loadgen-box=$B2 (control :$CONTROL, sink :$SPORT)  out=$OUT"
 
-# Prep: reserve the listen port (avoid ephemeral self-collision) + allow box 2 in.
+# Prep: reserve the listen port (avoid ephemeral self-collision).
 RES=$(cat /proc/sys/net/ipv4/ip_local_reserved_ports 2>/dev/null || echo "")
 case ",$RES," in *",$RPORT,"*) ;; *) sysctl -w net.ipv4.ip_local_reserved_ports="${RES:+$RES,}$RPORT" >/dev/null;; esac
-iptables -C INPUT -p tcp --dport "$RPORT" -s "$B2" -j ACCEPT 2>/dev/null || \
-  iptables -I INPUT -p tcp --dport "$RPORT" -s "$B2" -j ACCEPT 2>/dev/null || true
 
 # Sanity: control daemon reachable?
 curl -fs --max-time 5 "http://$B2:$CONTROL/health" >/dev/null \
   && echo "loadgend reachable" || { echo "!! cannot reach loadgend at $B2:$CONTROL — start it on box 2"; exit 1; }
+
+# Allow the relay port in from EVERY storm source IP. loadgend spreads the storm
+# across all of box 2's IPs (srcips=auto), so a single -s $B2 rule would drop the
+# other source IPs whenever box 1's INPUT policy isn't open. Ask the daemon.
+SRCIPS=$(curl -fs --max-time 5 "http://$B2:$CONTROL/srcips" 2>/dev/null \
+  | python3 -c "import sys,json; print(' '.join(json.load(sys.stdin)))" 2>/dev/null || true)
+[ -z "$SRCIPS" ] && SRCIPS="$B2"
+echo "opening $RPORT to storm source IPs: $SRCIPS"
+for ip in $SRCIPS; do
+  iptables -C INPUT -p tcp --dport "$RPORT" -s "$ip" -j ACCEPT 2>/dev/null || \
+    iptables -I INPUT -p tcp --dport "$RPORT" -s "$ip" -j ACCEPT 2>/dev/null || true
+done
 
 REAL_ARG=""; [ "$REALISTIC" = 1 ] && REAL_ARG="realistic=1"
 

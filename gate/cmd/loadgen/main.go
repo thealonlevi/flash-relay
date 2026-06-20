@@ -25,11 +25,17 @@ func main() {
 	inflight := flag.Int("inflight", 512, "concurrent in-flight connections")
 	dur := flag.Duration("duration", 10*time.Second, "measurement window")
 	warmup := flag.Duration("warmup", 2*time.Second, "warmup before timing")
+	srcSpec := flag.String("srcips", "", `source IPs to spread connections across: "auto" (all global IPs), "" (kernel default), or a csv list`)
 	flag.Parse()
+
+	srcIPs, err := storm.ResolveSrcIPs(*srcSpec)
+	if err != nil {
+		log.Fatalf("srcips: %v", err)
+	}
 
 	res := storm.Run(storm.Config{
 		Relay: *relay, ReqLen: *reqLen, ReplyLen: *replyLen,
-		InFlight: *inflight, Warmup: *warmup, Duration: *dur,
+		InFlight: *inflight, Warmup: *warmup, Duration: *dur, SrcIPs: srcIPs,
 	})
 	if res.AuditFail > 0 {
 		log.Printf("WARNING: %d byte-audit failures — run is INVALID", res.AuditFail)
