@@ -1,0 +1,26 @@
+# Go build artifacts
+*.o
+*.a
+*.so
+*.test
+*.out
+/bin/
+/dist/
+
+# binaries built from gate/ (no extensions, hard to glob safely) — keep explicit
+/gate/**/probe
+/gate/**/baseline
+/gate/**/loadgen
+
+# profiling / measurement output
+*.perf
+perf.data*
+*.prof
+*.svg
+/gate/results/
+
+# editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
