@@ -16,6 +16,35 @@ import (
 	"github.com/thealonlevi/flash-relay/gate/internal/proto"
 )
 
+// ListenAndServeEcho serves a long-lived ECHO upstream on addr: every accepted
+// connection echoes whatever it receives until the peer closes. Used by B3
+// (continuous bidirectional relay of long-lived tunnels). Blocks.
+func ListenAndServeEcho(addr string) error {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	log.Printf("echo sink listening on %s", addr)
+	var live atomic.Int64
+	go func() {
+		for range time.Tick(5 * time.Second) {
+			log.Printf("echo sink live=%d", live.Load())
+		}
+	}()
+	for {
+		c, err := ln.Accept()
+		if err != nil {
+			log.Printf("accept: %v", err)
+			continue
+		}
+		go func(c net.Conn) {
+			live.Add(1)
+			defer func() { live.Add(-1); c.Close() }()
+			io.Copy(c, c) // echo until peer closes
+		}(c)
+	}
+}
+
 // ListenAndServe serves the sink protocol on addr until the listener errors.
 // Blocks. Logs counters every 2s.
 func ListenAndServe(addr string, reqLen, replyLen int) error {

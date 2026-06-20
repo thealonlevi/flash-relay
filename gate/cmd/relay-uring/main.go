@@ -39,6 +39,11 @@ const (
 	opRecvResp
 	opSendClient
 	opClose
+	// duplex (continuous bidirectional relay) ops:
+	opC2URecv // recv on client
+	opC2USend // send to upstream
+	opU2CRecv // recv on upstream
+	opU2CSend // send to client
 )
 
 func ud(id uint64, op uint8) uint64 { return id<<8 | uint64(op) }
@@ -63,6 +68,11 @@ type conn struct {
 	reqN       int
 	closing    bool
 	closesLeft int
+	// duplex relay state (allocated only in -duplex mode)
+	c2uBuf   []byte // client -> upstream
+	u2cBuf   []byte // upstream -> client
+	bytesC2U uint64
+	bytesU2C uint64
 }
 
 // hookResult is produced by an off-ring hook goroutine and consumed by the ring
@@ -110,6 +120,8 @@ func main() {
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
 	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness; no netpoller)")
+	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3) instead of one-shot churn")
+	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
 	flag.Parse()
 
 	var delay hook.DelayFunc = hook.NoDelay()
@@ -275,9 +287,66 @@ func main() {
 					closeConn(c)
 					break
 				}
+				if *duplex {
+					// Initial request forwarded; go full duplex. One recv
+					// outstanding per direction; re-armed after its send.
+					c.c2uBuf = make([]byte, *bufSize)
+					c.u2cBuf = make([]byte, *bufSize)
+					post(func(s *uring.SQE) { uring.PrepRecv(s, c.clientFD, c.c2uBuf, ud(c.id, opC2URecv)) })
+					post(func(s *uring.SQE) { uring.PrepRecv(s, c.upstreamFD, c.u2cBuf, ud(c.id, opU2CRecv)) })
+					break
+				}
 				post(func(s *uring.SQE) {
 					uring.PrepRecv(s, c.upstreamFD, c.respBuf, ud(c.id, opRecvResp))
 				})
+
+			case opC2URecv: // client -> upstream
+				c := conns[id]
+				if c == nil || c.closing {
+					break
+				}
+				if res <= 0 { // client half-closed or error
+					closeConn(c)
+					break
+				}
+				n := int(res)
+				c.bytesC2U += uint64(n)
+				post(func(s *uring.SQE) { uring.PrepSend(s, c.upstreamFD, c.c2uBuf[:n], 0, ud(c.id, opC2USend)) })
+
+			case opC2USend:
+				c := conns[id]
+				if c == nil || c.closing {
+					break
+				}
+				if res < 0 {
+					closeConn(c)
+					break
+				}
+				post(func(s *uring.SQE) { uring.PrepRecv(s, c.clientFD, c.c2uBuf, ud(c.id, opC2URecv)) })
+
+			case opU2CRecv: // upstream -> client
+				c := conns[id]
+				if c == nil || c.closing {
+					break
+				}
+				if res <= 0 { // upstream half-closed or error
+					closeConn(c)
+					break
+				}
+				n := int(res)
+				c.bytesU2C += uint64(n)
+				post(func(s *uring.SQE) { uring.PrepSend(s, c.clientFD, c.u2cBuf[:n], 0, ud(c.id, opU2CSend)) })
+
+			case opU2CSend:
+				c := conns[id]
+				if c == nil || c.closing {
+					break
+				}
+				if res < 0 {
+					closeConn(c)
+					break
+				}
+				post(func(s *uring.SQE) { uring.PrepRecv(s, c.upstreamFD, c.u2cBuf, ud(c.id, opU2CRecv)) })
 
 			case opRecvResp:
 				c := conns[id]
