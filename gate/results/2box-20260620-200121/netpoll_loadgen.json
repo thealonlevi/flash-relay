@@ -1,0 +1,15 @@
+{
+  "relay": "203.0.113.10:18000",
+  "in_flight": 512,
+  "req_len": 64,
+  "reply_len": 256,
+  "duration_sec": 100.000866406,
+  "completed": 27043,
+  "errors": 16421,
+  "audit_fail": 0,
+  "conn_per_sec": 270.4276569985541,
+  "p50_us": 1087763,
+  "p99_us": 3125961,
+  "p999_us": 4189399,
+  "latency_samples": 27043
+}
