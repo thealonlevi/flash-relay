@@ -19,8 +19,8 @@ REPLYLEN=256
 MEASURE_CONNS=512   # FIXED in-flight for the scored measurement (low instr/conn noise)
 AUTHCPU=5us         # realistic decision hook cost (LOCKED contract; see internal/hook)
 WARMUP=2
-MEASURE=4
-N=3                 # reps per scored config; score = mean(1e9/instr_per_conn)
+MEASURE=5
+N=5                 # reps per scored config; score = mean(1e9/instr_per_conn). budget is not a constraint -> more reps = less noise
 SETTLE=1
 
 # --- anti-cheat gate (any failure => score 0) -------------------------------
@@ -35,7 +35,7 @@ ALLOWED_PATHS="gate/internal/uring gate/cmd/relay-uring"
 EPSILON=0.03        # promote only if >3% better than champion (above noise)
 PATIENCE=50         # configs without improvement => plateau => stop
 K=15                # re-check baseline (control drift) every K iterations
-OPT_MODEL=""        # "" = claude account default (Max); or "opus"/"sonnet"
+OPT_MODEL="opus"    # budget is not a constraint -> Opus every iteration (quality over cost)
 ITER_TIMEOUT=900    # 15 min per claude -p iteration
 CTX_ROTATE_TOKENS=120000
 
