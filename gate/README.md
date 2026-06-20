@@ -34,8 +34,10 @@ REQLEN REPLYLEN AUTHCPU`. Results land in `gate/results/<timestamp>/` with a
 | `internal/proto` | two-fd byte-audit wire protocol |
 | `cmd/relay-uring` | **SUT** — the io_uring relay probe (commit #1 of the real library) |
 | `cmd/relay-netpoll` | **baseline** — netpoller relay (`net` + `io.Copy`) |
-| `cmd/sink` / `cmd/loadgen` | upstream + client storm (infrastructure; may use `net`) |
-| `harness/` | pinning + perf measurement + summarizer |
+| `cmd/sink` / `cmd/loadgen` | upstream + one-shot client storm (infrastructure; may use `net`) |
+| `cmd/loadgend` | loadgen **control daemon** (box 2): HTTP `/run` + in-process sink, so box 1 drives the 2-box run remotely |
+| `internal/storm` / `internal/sinksrv` | shared storm + sink logic |
+| `harness/` | `gate.sh` (1-box), `run-sut.sh` + `run-2box.sh` (2-box), `summarize.py`, `combine-2box.py` |
 
 ## Reading B1
 

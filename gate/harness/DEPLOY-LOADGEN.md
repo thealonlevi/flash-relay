@@ -36,17 +36,21 @@ SPORT=9100           # sink  listen port      (open inbound on box 2)
 **Option A — build on box 1 and copy (no Go needed on box 2):**
 ```bash
 # on box 1, in the repo:
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/sink    ./gate/cmd/sink
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/loadgen ./gate/cmd/loadgen
-scp /tmp/sink /tmp/loadgen  user@$BOX2_IP:/usr/local/bin/
+for c in sink loadgen loadgend; do
+  CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/$c ./gate/cmd/$c
+done
+scp /tmp/sink /tmp/loadgen /tmp/loadgend  user@$BOX2_IP:/usr/local/bin/
 ```
 
 **Option B — build on box 2 (needs Go ≥ 1.25):**
 ```bash
 git clone git@github.com:thealonlevi/flash-relay.git && cd flash-relay
-CGO_ENABLED=0 go build -o /usr/local/bin/sink    ./gate/cmd/sink
-CGO_ENABLED=0 go build -o /usr/local/bin/loadgen ./gate/cmd/loadgen
+for c in sink loadgen loadgend; do CGO_ENABLED=0 go build -o /usr/local/bin/$c ./gate/cmd/$c; done
 ```
+
+`loadgend` is the **control daemon**: it hosts the sink in-process and exposes an
+HTTP endpoint so box 1 drives the whole run remotely (recommended — §5a). `sink`
+and `loadgen` remain for the manual flow (§5b).
 
 ## 3. Kernel + ulimit tuning (REQUIRED — connection storm)
 
@@ -84,13 +88,43 @@ bench box, unload it. Conntrack overflow silently drops connections.
 ## 4. Firewall
 
 ```bash
-# box 2 (this box): allow the relay to reach the sink
+# box 2 (this box): allow the relay to reach the sink, and box 1 to reach the
+# loadgend control port (9200).
 sudo iptables -I INPUT -p tcp --dport $SPORT -s $BOX1_IP -j ACCEPT
-# box 1: allow loadgen to reach the relay  (run on box 1)
+sudo iptables -I INPUT -p tcp --dport 9200  -s $BOX1_IP -j ACCEPT
+# box 1: allow box 2 to reach the relay  (run-2box.sh adds this automatically)
 # sudo iptables -I INPUT -p tcp --dport $RPORT -s $BOX2_IP -j ACCEPT
 ```
 
-## 5. Run the measurement
+## 5a. Run it — daemon-driven (recommended, one command from box 1)
+
+Start the control daemon **once** on box 2 (it hosts the sink in-process and
+serves the loadgen on demand); leave it running:
+```bash
+ulimit -n 1048576
+loadgend -control 0.0.0.0:9200 -sink 0.0.0.0:$SPORT -relay $BOX1_IP:$RPORT \
+  -reqlen 64 -replylen 256
+```
+
+Then drive the **entire** 2-box run from box 1 — both builds, perf, latency,
+verdict — with a single command:
+```bash
+sudo env B2=$BOX2_IP BOX1_IP=$BOX1_IP bash gate/harness/run-2box.sh
+# realistic-dial parking test:
+sudo env B2=$BOX2_IP BOX1_IP=$BOX1_IP REALISTIC=1 INFLIGHT=8000 bash gate/harness/run-2box.sh
+```
+`run-2box.sh` reserves the listen port, adds the box-1 inbound firewall rule,
+checks the daemon's `/health`, then for each build fires the remote storm
+(`curl http://$BOX2_IP:9200/run?...`), runs the SUT harness, collects the JSON,
+and writes `results/2box-<ts>/SUMMARY.md`. Knobs (env): `DUR REPS INFLIGHT WARMUP
+STORM_DUR CORE_SUT AUTHCPU REALISTIC RPORT SPORT CONTROL`.
+
+The daemon also responds to a direct probe if you want to sanity-check it:
+```bash
+curl -s "http://$BOX2_IP:9200/run?inflight=64&warmup=2s&duration=4s"   # returns JSON
+```
+
+## 5b. Run it — manual (no daemon)
 
 **Step A — start the sink on box 2 (leave it running):**
 ```bash
