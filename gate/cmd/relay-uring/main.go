@@ -12,9 +12,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -40,6 +43,16 @@ const (
 
 func ud(id uint64, op uint8) uint64 { return id<<8 | uint64(op) }
 func unpack(u uint64) (uint64, uint8) { return u >> 8, uint8(u & 0xff) }
+
+// writeStat publishes the completed counter via an atomic file rename (plain
+// file I/O — no netpoller). The 2-box harness reads this to compute conn/s on
+// the SUT box itself.
+func writeStat(path string, n uint64) {
+	tmp := path + ".tmp"
+	if os.WriteFile(tmp, []byte(fmt.Sprintf("completed=%d\n", n)), 0o644) == nil {
+		_ = os.Rename(tmp, path)
+	}
+}
 
 type conn struct {
 	id         uint64
@@ -96,6 +109,7 @@ func main() {
 	dialP50 := flag.Float64("dialp50", 20, "realistic dial median ms")
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
+	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness; no netpoller)")
 	flag.Parse()
 
 	var delay hook.DelayFunc = hook.NoDelay()
@@ -179,6 +193,14 @@ func main() {
 	postEventfd()
 
 	var accepted, completed, errs uint64
+	var completedStat atomic.Uint64
+	if *statsFile != "" {
+		go func() {
+			for range time.Tick(250 * time.Millisecond) {
+				writeStat(*statsFile, completedStat.Load())
+			}
+		}()
+	}
 	lastLog := time.Now()
 
 	for {
@@ -281,6 +303,7 @@ func main() {
 					errs++
 				} else {
 					completed++
+					completedStat.Store(completed)
 				}
 				closeConn(c)
 

@@ -15,8 +15,10 @@ go test ./gate/internal/uring/        # ring smoke tests (recv/send + accept)
 
 ```
 sudo bash gate/harness/gate.sh                      # headline (CPU-isolation)
-sudo REALISTIC=1 bash gate/harness/gate.sh          # realistic-dial (parking test)
+sudo env REALISTIC=1 bash gate/harness/gate.sh      # realistic-dial (parking test)
 ```
+> Use `sudo env VAR=…` to pass knobs — plain `sudo VAR=… bash` drops them.
+> For the **2-box** measurement-grade run, see [`harness/DEPLOY-LOADGEN.md`](harness/DEPLOY-LOADGEN.md).
 
 Knobs (env): `CORE_SUT CORE_SINK CORE_LG RPORT SPORT INFLIGHT DUR WARMUP REPS
 REQLEN REPLYLEN AUTHCPU`. Results land in `gate/results/<timestamp>/` with a

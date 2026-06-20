@@ -8,15 +8,24 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/thealonlevi/flash-relay/gate/internal/hook"
 	"github.com/thealonlevi/flash-relay/gate/internal/proto"
 )
+
+func writeStat(path string, n uint64) {
+	tmp := path + ".tmp"
+	if os.WriteFile(tmp, []byte(fmt.Sprintf("completed=%d\n", n)), 0o644) == nil {
+		_ = os.Rename(tmp, path)
+	}
+}
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:9000", "listen address")
@@ -27,6 +36,7 @@ func main() {
 	dialP50 := flag.Float64("dialp50", 20, "realistic dial median ms")
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
+	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness)")
 	flag.Parse()
 
 	var delay hook.DelayFunc = hook.NoDelay()
@@ -47,6 +57,13 @@ func main() {
 			log.Printf("baseline completed=%d errs=%d", completed.Load(), errs.Load())
 		}
 	}()
+	if *statsFile != "" {
+		go func() {
+			for range time.Tick(250 * time.Millisecond) {
+				writeStat(*statsFile, completed.Load())
+			}
+		}()
+	}
 
 	for {
 		c, err := ln.Accept()
