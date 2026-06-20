@@ -51,6 +51,7 @@ const (
 	OpAccept = 13
 	OpConnect = 16
 	OpClose  = 19
+	OpRead   = 22
 	OpSend   = 26
 	OpRecv   = 27
 )
@@ -283,6 +284,16 @@ func (r *Ring) Close() {
 func PrepAccept(s *SQE, listenFd int, ud uint64) {
 	s.Opcode = OpAccept
 	s.Fd = int32(listenFd)
+	s.UserData = ud
+}
+
+// PrepRead prepares a read(2) into buf at offset 0 (used for the eventfd wakeup
+// bridge that lets off-ring hook goroutines wake the ring worker).
+func PrepRead(s *SQE, fd int, buf []byte, ud uint64) {
+	s.Opcode = OpRead
+	s.Fd = int32(fd)
+	s.Addr = uint64(uintptr(unsafe.Pointer(&buf[0])))
+	s.Len = uint32(len(buf))
 	s.UserData = ud
 }
 
