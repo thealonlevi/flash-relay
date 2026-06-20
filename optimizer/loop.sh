@@ -11,6 +11,8 @@ cd "$(dirname "$0")/.."
 . optimizer/config
 export IS_SANDBOX=1 PATH="$PATH:/usr/local/go/bin" CGO_ENABLED=0
 mkdir -p "$RESULTS_DIR/loop-logs"
+echo $$ > "$RESULTS_DIR/loop.pid"
+trap 'rm -f "$RESULTS_DIR/loop.pid"' EXIT
 LOG(){ echo "[loop $(date +%H:%M:%S)] $*"; }
 MAX_ITERS="${MAX_ITERS:-1000000}"
 ITERCSV="$RESULTS_DIR/iterations.csv"

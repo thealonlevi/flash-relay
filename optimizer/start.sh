@@ -7,10 +7,14 @@ cd "$(dirname "$0")/.."
 . optimizer/config
 mkdir -p "$RESULTS_DIR/loop-logs"
 
-if pgrep -f 'optimizer/loop.sh' >/dev/null; then
-  echo "already running (pid $(pgrep -f optimizer/loop.sh | tr '\n' ' ')). stop: touch $RESULTS_DIR/STOP"
+# PID-file check (NOT pgrep -f — that self-matches any caller whose command line
+# contains 'optimizer/loop.sh', e.g. a supervising shell).
+PIDF="$RESULTS_DIR/loop.pid"
+if [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF" 2>/dev/null)" 2>/dev/null; then
+  echo "already running (pid $(cat "$PIDF")). stop: touch $RESULTS_DIR/STOP"
   exit 0
 fi
+rm -f "$PIDF"
 clickhouse-client --multiquery < optimizer/schema.sql 2>/dev/null || echo "warn: clickhouse schema not applied (continuing; CH logging best-effort)"
 
 TS=$(date +%Y%m%d-%H%M%S); OUT="$RESULTS_DIR/loop-logs/loop.$TS.out"
