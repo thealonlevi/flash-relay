@@ -7,10 +7,14 @@
 /bin/
 /dist/
 
-# binaries built from gate/ (no extensions, hard to glob safely) — keep explicit
-/gate/**/probe
-/gate/**/baseline
-/gate/**/loadgen
+# Stray binaries from `go build` inside a cmd dir (same name as the dir). These
+# anchored paths ignore the BINARY only — never the source dir / main.go.
+# (Bug history: a broad `/gate/**/loadgen` here silently swallowed the
+# gate/cmd/loadgen SOURCE directory so it never got committed.)
+/gate/cmd/sink/sink
+/gate/cmd/loadgen/loadgen
+/gate/cmd/relay-uring/relay-uring
+/gate/cmd/relay-netpoll/relay-netpoll
 
 # profiling / measurement output
 *.perf
