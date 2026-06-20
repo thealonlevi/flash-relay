@@ -45,6 +45,12 @@ const featSingleMmap = 1 // IORING_FEAT_SINGLE_MMAP
 // io_uring_enter flags.
 const enterGetevents = 1 // IORING_ENTER_GETEVENTS
 
+// accept_flags (sqe.ioprio) and cqe.flags bits used for multishot accept.
+const (
+	acceptMultishot = 1 << 0 // IORING_ACCEPT_MULTISHOT (set in sqe.ioprio)
+	CQEFMore        = 1 << 1 // IORING_CQE_F_MORE: the SQE will yield more CQEs
+)
+
 // Opcodes (subset used by the gate).
 const (
 	opNop    = 0
@@ -284,6 +290,16 @@ func (r *Ring) Close() {
 func PrepAccept(s *SQE, listenFd int, ud uint64) {
 	s.Opcode = OpAccept
 	s.Fd = int32(listenFd)
+	s.UserData = ud
+}
+
+// PrepAcceptMultishot prepares a multishot accept: one armed SQE yields a CQE
+// per accepted connection and stays active (no per-conn re-arm) as long as each
+// CQE carries CQEFMore. Re-arm only when CQEFMore is absent (multishot ended).
+func PrepAcceptMultishot(s *SQE, listenFd int, ud uint64) {
+	s.Opcode = OpAccept
+	s.Fd = int32(listenFd)
+	s.IoPrio = acceptMultishot
 	s.UserData = ud
 }
 

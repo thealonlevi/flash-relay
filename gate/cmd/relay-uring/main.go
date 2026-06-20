@@ -195,7 +195,7 @@ func main() {
 	}
 
 	postAccept := func() {
-		post(func(s *uring.SQE) { uring.PrepAccept(s, ln.FD, ud(0, opAccept)) })
+		post(func(s *uring.SQE) { uring.PrepAcceptMultishot(s, ln.FD, ud(0, opAccept)) })
 	}
 	postEventfd := func() {
 		post(func(s *uring.SQE) { uring.PrepRead(s, br.efd, efdBuf, ud(0, opEventfd)) })
@@ -226,7 +226,11 @@ func main() {
 			res := cqe.Res
 			switch op {
 			case opAccept:
-				postAccept()
+				// Multishot accept stays armed across connections; only re-arm
+				// when the kernel signals the SQE is done (CQEFMore cleared).
+				if cqe.Flags&uring.CQEFMore == 0 {
+					postAccept()
+				}
 				if res < 0 {
 					errs++
 					break
