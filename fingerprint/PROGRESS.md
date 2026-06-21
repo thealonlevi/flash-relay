@@ -32,3 +32,10 @@ Use p0f -i lo as oracle; target p0f.fp sigs so match-by-construction.
 
 ## Benchmark conclusion (3 variants: rewrite-all/direct-access/mark-based)
 All ~same: churn +3.6-3.9% instr/conn, throughput ~0% (within noise). Cost = per-packet tc-egress DISPATCH (hook invoked per egress packet), NOT program logic/rewrite. Intrinsic to tc-egress. Only lever: flower SYN-prefilter (marginal) or sock_ops (can't reorder opts). Throughput unaffected because few big packets amortize dispatch.
+
+## FINAL (overnight, all 4 modern profiles done)
+Research: RESEARCH.md (modern macOS/Win10-11/Android/iOS sigs + replicability).
+Implemented + loopback-validated: Windows10/11 (shrink, no-TS), macOS (grow, ==live capture),
+Android (sockopt-only), iOS (==macOS layout). DialFingerprint(profile) sets SO_MARK+SO_RCVBUF.
+Deploy: rmem_max>=16M + eBPF attached + CAP_NET_ADMIN. Real-NIC needed for window-value + p0f OS-label.
+Note: one transient iOS capture-miss observed once, 6/6 on retest — change_tail path reliability worth a stress check.

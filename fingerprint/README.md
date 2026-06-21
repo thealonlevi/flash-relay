@@ -36,27 +36,40 @@ tc qdisc del dev eth0 clsact                          # detach
 
 Needs `CAP_NET_ADMIN` + the eBPF/tc toolchain (`clang`, `libbpf-dev`, `iproute2`).
 
-## Profiles (canonical p0f.fp signatures)
+## Profiles — MODERN OSes (see RESEARCH.md for sources)
 
-| Profile | TTL | TCP options | window,wscale | eBPF work |
-|---|---|---|---|---|
-| Linux (relay's real stack) | 64 | `mss,sok,ts,nop,ws` (20B) | *,7 | — |
-| **Windows 7/8/10** (mark 1) | 128 | `mss,nop,ws,sok,ts` (20B) | 8192,2 | TTL + in-place reorder ✅ |
-| **macOS 10.x** (mark 2) | 64 | `mss,nop,ws,nop,nop,ts,sok,eol+1` (24B) | 65535,* | reorder + **grow +4** (TODO) |
-| **Android** (mark 3) | 64 | `mss,sok,ts,nop,ws` (**same as Linux**) | *,3 | **none** — sockopt only |
+Selected via `flashrelay.DialFingerprint(host, port, profile)` (sets SO_MARK for the
+eBPF layout/TTL + SO_RCVBUF for the wscale). All validated on loopback (✅).
 
-**Key:** TTL + option *order* are cosmetic → forge freely in eBPF. **window +
-wscale are functional** — forging them in the SYN alone desyncs flow control, so
-they must come from the kernel via `setsockopt(SO_RCVBUF)` on the upstream socket
-(the kernel derives wscale + initial window from the receive buffer). Android needs
-*no* eBPF (its option layout == Linux); it's purely a window/wscale (sockopt) job.
+| Profile | id | TTL | TCP options | wscale | eBPF work |
+|---|---|---|---|---|---|
+| Linux (relay's real stack) | 0 | 64 | `mss,sok,ts,nop,ws` (20B) | 7 | — |
+| **Windows 10/11** | 1 | 128 | `mss,nop,ws,nop,nop,sok` (12B, **no TS**) | 8 | reorder + **shrink −8** ✅ |
+| **macOS** 13–15 | 2 | 64 | `mss,nop,ws,nop,nop,ts,sok,eol` (24B) | 6 | reorder + **grow +4** ✅ |
+| **Android** 10–14 | 3 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 8 | **none** (sockopt only) ✅ |
+| **iOS** 16/17 | 4 | 64 | == macOS layout (eBPF mark 2) | 7 | (reuses macOS) ✅ |
+
+macOS is matched against a **live Mac capture** (`captures-macos-real.txt`). **Key:**
+TTL + option *order/set* are forged by the eBPF (cosmetic); **window + wscale are
+functional** and come from `SO_RCVBUF` (the kernel derives them) — needs
+`net.core.rmem_max` raised (≥16 MiB): 2M→wscale 6, 4M→7, 8M→8. Android needs no eBPF
+(layout == Linux). The MSS is left as the relay's real path MSS (path-dependent, not
+an OS tell). Full p0f/JA4T OS-*label* confirmation needs a real NIC (loopback MSS
+65495 distorts the window).
+
+## Deploy requirements
+
+1. `clang`/`libbpf-dev`/`iproute2` to build; `CAP_NET_ADMIN` to attach + set SO_MARK.
+2. Attach the eBPF on the egress interface (`tc ... egress bpf da obj ... sec tc`).
+3. `sysctl -w net.core.rmem_max=16777216` (so SO_RCVBUF can reach the target wscales).
+4. The relay's hook returns the profile id; `DialFingerprint` does the rest.
 
 ## Status & benchmark
 
-**Working + validated (loopback):** Windows profile — `SO_MARK=1` connection emits
-TTL 128 + `mss,nop,ws,sok,ts`, IP checksum correct, handshake + data survive;
-unmarked connections pass through as untouched Linux. Per-connection selection via
-`SO_MARK` works end-to-end through the relay.
+**All 4 modern profiles working + validated (loopback):** each `DialFingerprint`
+profile emits the exact TTL + option layout + wscale of its OS; macOS matches the
+live Mac capture byte-for-byte (modulo path-MSS); unmarked traffic passes through as
+untouched Linux; handshake + data survive (incl. the grow/shrink paths).
 
 **Cost (eBPF off vs on, 1-core loopback; three program variants measured —
 rewrite-all, direct-packet-access, mark-based — all agree):**
