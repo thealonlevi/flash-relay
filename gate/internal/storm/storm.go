@@ -8,6 +8,7 @@ package storm
 
 import (
 	"io"
+	"math/rand"
 	"net"
 	"sort"
 	"sync"
@@ -25,6 +26,7 @@ type Config struct {
 	InFlight int
 	Warmup   time.Duration
 	Duration time.Duration
+	JunkPct  int // % of connections that are zero-byte connect-flood junk (connect→close, no request, never reaches upstream). Models the ISP connect-flood incident.
 }
 
 // Result is the measured outcome (JSON-tagged to match the loadgen output that
@@ -36,6 +38,7 @@ type Result struct {
 	ReplyLen    int     `json:"reply_len"`
 	DurationSec float64 `json:"duration_sec"`
 	Completed   uint64  `json:"completed"`
+	Junk        uint64  `json:"junk"`
 	Errors      uint64  `json:"errors"`
 	AuditFail   uint64  `json:"audit_fail"`
 	ConnPerSec  float64 `json:"conn_per_sec"`
@@ -52,7 +55,7 @@ func Run(cfg Config) Result {
 	req := proto.Request(cfg.ReqLen)
 	wantReply := proto.Reply(cfg.ReplyLen)
 
-	var completed, errs, auditFail atomic.Uint64
+	var completed, junk, errs, auditFail atomic.Uint64
 	var measuring atomic.Bool
 	stop := make(chan struct{})
 
@@ -63,11 +66,26 @@ func Run(cfg Config) Result {
 		go func(w int) {
 			defer wg.Done()
 			buf := make([]byte, cfg.ReplyLen)
+			rng := rand.New(rand.NewSource(int64(w)*2654435761 + 1))
 			for {
 				select {
 				case <-stop:
 					return
 				default:
+				}
+				// Junk: zero-byte connect-flood — connect then close, no request,
+				// never reaches upstream. Models the 93%-junk ISP incident.
+				if cfg.JunkPct > 0 && rng.Intn(100) < cfg.JunkPct {
+					c, err := net.Dial("tcp", cfg.Relay)
+					if err != nil {
+						errs.Add(1)
+						continue
+					}
+					c.Close()
+					if measuring.Load() {
+						junk.Add(1)
+					}
+					continue
 				}
 				t0 := time.Now()
 				c, err := net.Dial("tcp", cfg.Relay)
@@ -117,8 +135,8 @@ func Run(cfg Config) Result {
 	return Result{
 		Relay: cfg.Relay, InFlight: cfg.InFlight, ReqLen: cfg.ReqLen, ReplyLen: cfg.ReplyLen,
 		DurationSec: elapsed.Seconds(),
-		Completed:   completed.Load(), Errors: errs.Load(), AuditFail: auditFail.Load(),
-		ConnPerSec: float64(completed.Load()) / elapsed.Seconds(),
+		Completed:   completed.Load(), Junk: junk.Load(), Errors: errs.Load(), AuditFail: auditFail.Load(),
+		ConnPerSec: float64(completed.Load()+junk.Load()) / elapsed.Seconds(),
 		P50us:      pct(all, 0.50), P99us: pct(all, 0.99), P999us: pct(all, 0.999),
 		Samples:    len(all),
 	}
