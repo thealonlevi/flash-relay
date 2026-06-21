@@ -26,8 +26,18 @@ OLD_P=$(cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null || echo 2)
 OLD_K=$(cat /proc/sys/kernel/kptr_restrict 2>/dev/null || echo 1)
 echo -1 > /proc/sys/kernel/perf_event_paranoid 2>/dev/null || true
 echo 0  > /proc/sys/kernel/kptr_restrict 2>/dev/null || true
+# Verified-bind port selection. A relay that wedges into D-state holds its ports
+# in CLOSE-WAIT forever (invisible to `ss -ltn`), so the fixed config ports can be
+# silently un-bindable -> EADDRINUSE that looks like a relay crash. Pick ports we
+# just PROVED bindable, then reserve them so no ephemeral can grab them before the
+# relay binds. (Picking unoccupied ports also avoids joining a poisoned
+# SO_REUSEPORT group, which is itself a wedge trigger.) Override the config ports.
+PORTS=$(python3 optimizer/pick-ports.py "${PORT_BASE:-40000}" 6 100) \
+  || { log "no bindable ports (box port space exhausted -> reboot)"; emit '{"score":0,"reason":"no_ports"}'; }
+read -r RPORT SPORT DPORT EPORT TPORT TEPORT <<<"$PORTS"
+log "ports: relay=$RPORT sink=$SPORT duplex=$DPORT/$EPORT bulk=$TPORT/$TEPORT"
 RES=$(cat /proc/sys/net/ipv4/ip_local_reserved_ports 2>/dev/null || echo "")
-for p in $RPORT $SPORT $DPORT $EPORT; do case ",$RES," in *",$p,"*) ;; *) RES="${RES:+$RES,}$p";; esac; done
+for p in $RPORT $SPORT $DPORT $EPORT $TPORT $TEPORT; do case ",$RES," in *",$p,"*) ;; *) RES="${RES:+$RES,}$p";; esac; done
 sysctl -w net.ipv4.ip_local_reserved_ports="$RES" >/dev/null 2>&1 || true
 
 RELAY_PID=""; SINK_PID=""
