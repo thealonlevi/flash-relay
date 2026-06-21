@@ -18,10 +18,13 @@ EPORT=18300         # echo sink for the duplex smoke
 #                 e.g. registered descriptors). The default.
 # bytes_per_cpu : B4 bulk-throughput workload, SCORE = relayed_bytes / instructions
 #                 * 1e6 (data-plane wins, e.g. splice). Run a separate campaign.
-# The chosen objective is the maximize-target; EVERY other metric is protected as a
-# no-regress gate in the promotion suite (gate-suite.sh) — that is how we "optimize
-# on everything" without a magic weighted score.
-OBJECTIVE="${OBJECTIVE:-instr_pc}"
+# In single mode the chosen objective is the maximize-target; every other metric is
+# protected as a no-regress gate in the promotion suite. In PARETO mode (default)
+# the loop measures BOTH objectives each iteration and keeps a mutation only if it
+# improves at least one and regresses NEITHER — "optimize on everything" directly,
+# no magic weighted score.
+OBJECTIVE="${OBJECTIVE:-instr_pc}"   # only used when MODE=single
+MODE="${MODE:-pareto}"               # pareto (both objectives) | single (OBJECTIVE only)
 
 # --- workload (B2-style churn, CPU-bound on loopback) -----------------------
 REQLEN=64
@@ -54,7 +57,9 @@ HOLD_CONNS=20000        # held-connection count for the RSS-slope gate
 RSS_SLOPE_CEIL=16384    # max bytes/conn of relay RSS (LEAK guard, not a tight buffer cap:
                         # legit cost is ~2x bufsize + overhead, ~6 KB/conn at 40k+ scale;
                         # 16 KB catches a real per-conn leak with margin)
-REGRESS_TOL=0.05        # the non-objective throughput/instr metric may not drop >5%
+REGRESS_TOL=0.03        # neither objective may drop more than this (~the measured
+                        # N-rep noise floor) — keeps "no regression" tight without
+                        # false-rejecting noise-neutral mutations
 
 # --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------
 # The ring (internal/uring) is shared by the library + the SUT, so a ring win

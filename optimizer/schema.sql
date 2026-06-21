@@ -14,3 +14,8 @@ CREATE TABLE IF NOT EXISTS flashrelay.iterations (
   in_tokens     UInt64,
   hypothesis    String
 ) ENGINE = MergeTree ORDER BY (ts);
+
+-- Pareto mode optimizes BOTH objectives at once: `score`/`champion` hold instr_pc,
+-- these hold bytes_per_cpu. Idempotent so re-applying the schema is safe.
+ALTER TABLE flashrelay.iterations ADD COLUMN IF NOT EXISTS score_bytes    Float64;
+ALTER TABLE flashrelay.iterations ADD COLUMN IF NOT EXISTS champion_bytes Float64;
