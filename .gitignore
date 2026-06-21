@@ -37,3 +37,6 @@ gate/results/**/*_perf_*.csv
 optimizer/results/
 gate/results/**/*.data
 gate/results/**/*.load.json
+
+# local Claude Code settings (never commit — machine/run-specific)
+.claude/settings.local.json
