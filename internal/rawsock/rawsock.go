@@ -23,11 +23,15 @@ type Listener struct {
 	Port int
 }
 
-// Listen creates an IPv4 TCP listener bound to ip:port with SO_REUSEPORT. A port
-// of 0 picks an ephemeral port (read back into Listener.Port). ip "" means
-// 127.0.0.1 (loopback, the gate default).
+// Listen creates a TCP listener bound to ip:port (IPv4 or IPv6) with SO_REUSEPORT.
+// A port of 0 picks an ephemeral port (read back into Listener.Port). ip "" means
+// 127.0.0.1 (loopback, the gate default); pass a specific IP to bind one address.
 func Listen(ip string, port int, backlog int) (*Listener, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	sa, family, err := resolve(ip, port)
+	if err != nil {
+		return nil, err
+	}
+	fd, err := syscall.Socket(family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	if err != nil {
 		return nil, fmt.Errorf("socket: %w", err)
 	}
@@ -38,11 +42,6 @@ func Listen(ip string, port int, backlog int) (*Listener, error) {
 	if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, soReusePort, 1); err != nil {
 		syscall.Close(fd)
 		return nil, fmt.Errorf("SO_REUSEPORT: %w", err)
-	}
-	sa, err := sockaddr(ip, port)
-	if err != nil {
-		syscall.Close(fd)
-		return nil, err
 	}
 	if err := syscall.Bind(fd, sa); err != nil {
 		syscall.Close(fd)
@@ -59,8 +58,11 @@ func Listen(ip string, port int, backlog int) (*Listener, error) {
 			syscall.Close(fd)
 			return nil, fmt.Errorf("getsockname: %w", err)
 		}
-		if in4, ok := lsa.(*syscall.SockaddrInet4); ok {
-			l.Port = in4.Port
+		switch a := lsa.(type) {
+		case *syscall.SockaddrInet4:
+			l.Port = a.Port
+		case *syscall.SockaddrInet6:
+			l.Port = a.Port
 		}
 	}
 	return l, nil
@@ -74,14 +76,13 @@ func (l *Listener) Close() error { return syscall.Close(l.FD) }
 // the Go scheduler — it does NOT touch the netpoller. This is how riptide dials
 // upstream (and how the gate's decision hook dials the sink). See DESIGN.md §3.2.
 func Dial(ip string, port int) (int, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	sa, family, err := resolve(ip, port)
+	if err != nil {
+		return -1, err
+	}
+	fd, err := syscall.Socket(family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	if err != nil {
 		return -1, fmt.Errorf("socket: %w", err)
-	}
-	sa, err := sockaddr(ip, port)
-	if err != nil {
-		syscall.Close(fd)
-		return -1, err
 	}
 	if err := syscall.Connect(fd, sa); err != nil {
 		syscall.Close(fd)
@@ -102,13 +103,14 @@ func ipOrLoopback(ip string) string {
 	return ip
 }
 
-func sockaddr(ip string, port int) (syscall.Sockaddr, error) {
+// resolve parses ip into a Sockaddr and its socket family (AF_INET / AF_INET6).
+func resolve(ip string, port int) (syscall.Sockaddr, int, error) {
 	addr, err := netip.ParseAddr(ipOrLoopback(ip))
 	if err != nil {
-		return nil, fmt.Errorf("parse ip %q: %w", ip, err)
+		return nil, 0, fmt.Errorf("parse ip %q: %w", ip, err)
 	}
-	if !addr.Is4() {
-		return nil, fmt.Errorf("gate is IPv4-only for now: %q", ip)
+	if addr.Is4() {
+		return &syscall.SockaddrInet4{Port: port, Addr: addr.As4()}, syscall.AF_INET, nil
 	}
-	return &syscall.SockaddrInet4{Port: port, Addr: addr.As4()}, nil
+	return &syscall.SockaddrInet6{Port: port, Addr: addr.As16()}, syscall.AF_INET6, nil
 }
