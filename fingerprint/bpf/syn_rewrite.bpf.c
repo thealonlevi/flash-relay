@@ -91,22 +91,40 @@ int syn_rewrite(struct __sk_buff *skb)
 	// Linux fields: mss=old[0:4] sackok=old[4:6] ts=old[6:16] nop=old[16] ws=old[17:20]
 
 	if (fp == FP_WINDOWS) {
-		// TTL 128 + opts mss,nop,ws,sok,ts (20B, in place)
-		__u8 n[20];
-		n[0] = old[0]; n[1] = old[1]; n[2] = old[2]; n[3] = old[3]; // mss
-		n[4] = 0x01;                                                // nop
-		n[5] = old[17]; n[6] = old[18]; n[7] = old[19];            // ws
-		n[8] = old[4]; n[9] = old[5];                              // sackok
-		n[10] = old[6]; n[11] = old[7]; n[12] = old[8]; n[13] = old[9]; // ts
-		n[14] = old[10]; n[15] = old[11]; n[16] = old[12]; n[17] = old[13];
-		n[18] = old[14]; n[19] = old[15];
+		// Modern Windows 10/11: TTL 128 + opts mss,nop,ws,nop,nop,sok (12B, NO
+		// timestamps) -> shrink the option field 20B -> 12B.
+		__u8 w[12];
+		w[0] = old[0]; w[1] = old[1]; w[2] = old[2]; w[3] = old[3]; // mss
+		w[4] = 0x01;                                                // nop
+		w[5] = old[17]; w[6] = old[18]; w[7] = old[19];            // ws
+		w[8] = 0x01; w[9] = 0x01;                                  // nop nop
+		w[10] = old[4]; w[11] = old[5];                            // sackok
+		__u32 newlen = skb->len - 8;
+		if (bpf_skb_change_tail(skb, newlen, 0) < 0)
+			return TC_ACT_OK;
+		data = (void *)(long)skb->data;
+		data_end = (void *)(long)skb->data_end;
+		p = data;
+		if (p + l2 + 52 > (__u8 *)data_end) // ip20 + tcp20 + opts12
+			return TC_ACT_OK;
+		ip = p + l2; tcp = ip + 20; o = tcp + 20;
 #pragma unroll
-		for (int i = 0; i < 20; i++)
-			o[i] = n[i];
-		ip[8] = 128; // TTL — do all direct packet writes BEFORE the csum helper
-		ip_csum(ip); //          (bpf_l4_csum_replace invalidates packet pointers)
-		__s64 diff = bpf_csum_diff((__be32 *)old, 20, (__be32 *)n, 20, 0);
-		bpf_l4_csum_replace(skb, l2 + 20 + 16, 0, diff, 0);
+		for (int i = 0; i < 12; i++)
+			o[i] = w[i];
+		__u8 doff_old = tcp[12], doff_new = (8 << 4) | (tcp[12] & 0x0f);
+		tcp[12] = doff_new;
+		ip[8] = 128; // TTL 128
+		__u16 totlen = (((__u16)ip[2] << 8) | ip[3]) - 8;
+		ip[2] = totlen >> 8; ip[3] = totlen & 0xff;
+		ip_csum(ip);
+		__u8 do_old[4] = { doff_old, tcp[13], tcp[14], tcp[15] };
+		__u8 do_new[4] = { doff_new, tcp[13], tcp[14], tcp[15] };
+		__s64 d_doff = bpf_csum_diff((__be32 *)do_old, 4, (__be32 *)do_new, 4, 0);
+		__s64 d_opts = bpf_csum_diff((__be32 *)old, 20, (__be32 *)w, 12, 0);
+		int csoff = l2 + 20 + 16;
+		bpf_l4_csum_replace(skb, csoff, 0, d_doff, 0);
+		bpf_l4_csum_replace(skb, csoff, 0, d_opts, 0);
+		bpf_l4_csum_replace(skb, csoff, bpf_htons(40), bpf_htons(32), 2 | BPF_F_PSEUDO_HDR);
 		return TC_ACT_OK;
 	}
 
