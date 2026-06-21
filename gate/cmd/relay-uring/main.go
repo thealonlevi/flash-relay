@@ -55,6 +55,7 @@ const (
 	opC2USpliceOut // splice c2u pipe -> upstream
 	opU2CSpliceIn  // splice upstream -> u2c pipe
 	opU2CSpliceOut // splice u2c pipe -> client
+	opSplicePoll   // POLLRDHUP watch on client/upstream fd: observe peer close out-of-band
 	opTimeout      // periodic liveness timeout (deadlock-proofing under flood)
 )
 
@@ -385,6 +386,17 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 					post(func(s *uring.SQE) {
 						uring.PrepSplice(s, cc.upstreamFD, uring.SpliceOffUnspecified, cc.u2cPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opU2CSpliceIn))
 					})
+					// Watch BOTH fds for peer-close out-of-band: under saturated
+					// bidirectional flow the data-path splices can park (full pipe /
+					// full socket buffer), so a close would otherwise go unnoticed and
+					// the conn would hang. A one-shot POLLRDHUP poll fires on close
+					// regardless of the splice state -> closeConn breaks the deadlock.
+					post(func(s *uring.SQE) {
+						uring.PrepPollAdd(s, cc.clientFD, uring.PollRdhup|uring.PollHup|uring.PollErr, ud(cc.id, opSplicePoll))
+					})
+					post(func(s *uring.SQE) {
+						uring.PrepPollAdd(s, cc.upstreamFD, uring.PollRdhup|uring.PollHup|uring.PollErr, ud(cc.id, opSplicePoll))
+					})
 					break
 				}
 				if c.duplex {
@@ -566,6 +578,13 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 						uring.PrepSplice(s, cc.upstreamFD, uring.SpliceOffUnspecified, cc.u2cPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opU2CSpliceIn))
 					})
 				}
+
+			case opSplicePoll: // peer (client or upstream) closed -> tear the conn down
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				closeConn(cc)
 
 			case opRecvResp:
 				cc := conns[cid]

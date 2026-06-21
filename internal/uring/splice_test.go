@@ -73,3 +73,32 @@ func TestSplice(t *testing.T) {
 	}
 	t.Logf("spliced %q socket->pipe->socket through the ring", got[:n])
 }
+
+// TestPollAdd proves PrepPollAdd fires when the peer closes — the out-of-band
+// teardown signal for the splice relay.
+func TestPollAdd(t *testing.T) {
+	r, err := New(8)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	defer r.Close()
+	sp, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatalf("socketpair: %v", err)
+	}
+	defer syscall.Close(sp[0])
+	// Arm a poll on sp[0] for peer-close, then close sp[1].
+	PrepPollAdd(r.GetSQE(), sp[0], PollRdhup|PollHup|PollErr, 99)
+	if _, err := r.Submit(0); err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	syscall.Close(sp[1]) // peer closes -> poll should fire
+	res := drive(t, r)
+	if res < 0 {
+		t.Fatalf("poll res=%d (error)", res)
+	}
+	if res&(PollHup|PollRdhup|PollErr) == 0 {
+		t.Fatalf("poll fired but no close bit set: revents=0x%x", res)
+	}
+	t.Logf("poll fired on peer close, revents=0x%x", res)
+}

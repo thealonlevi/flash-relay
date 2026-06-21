@@ -54,6 +54,7 @@ const (
 // Opcodes (subset used by the gate).
 const (
 	opNop     = 0
+	OpPollAdd = 6
 	OpTimeout = 11
 	OpAccept  = 13
 	OpConnect = 16
@@ -62,6 +63,14 @@ const (
 	OpSend    = 26
 	OpRecv    = 27
 	OpSplice  = 30
+)
+
+// poll event bits (sqe.poll32_events for OpPollAdd; also the cqe.res revents).
+const (
+	PollIn    = 0x0001 // POLLIN
+	PollErr   = 0x0008 // POLLERR
+	PollHup   = 0x0010 // POLLHUP
+	PollRdhup = 0x2000 // POLLRDHUP (peer closed its write half)
 )
 
 // splice_flags (sqe.OpFlags for OpSplice). Mirror the splice(2) SPLICE_F_* bits.
@@ -389,6 +398,17 @@ func PrepSplice(s *SQE, fdIn int, offIn int64, fdOut int, offOut int64, nbytes u
 	s.Len = nbytes
 	s.OpFlags = flags
 	s.SpliceFdIn = int32(fdIn)
+	s.UserData = ud
+}
+
+// PrepPollAdd prepares a one-shot poll on fd for the given event mask (Poll*),
+// completing (cqe.res = revents) when any of them fires. Used to observe peer
+// close (PollRdhup|PollHup|PollErr) out-of-band during a splice relay, so a
+// teardown is noticed even when the data-path splice ops are parked.
+func PrepPollAdd(s *SQE, fd int, events uint32, ud uint64) {
+	s.Opcode = OpPollAdd
+	s.Fd = int32(fd)
+	s.OpFlags = events // poll32_events (overlaps the rw_flags union at offset 28)
 	s.UserData = ud
 }
 
