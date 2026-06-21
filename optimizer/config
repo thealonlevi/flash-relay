@@ -51,7 +51,9 @@ FLOOD_CONNS=2000        # connect-flood concurrency for the deadlock/CPU gate
 FLOOD_SECS=8            # flood duration
 FLOOD_CPU_CEIL=1.30     # flood CPU/conn must stay within 1.30x of the champion's
 HOLD_CONNS=20000        # held-connection count for the RSS-slope gate
-RSS_SLOPE_CEIL=8192     # max bytes/conn of relay RSS at HOLD_CONNS (leak guard)
+RSS_SLOPE_CEIL=16384    # max bytes/conn of relay RSS (LEAK guard, not a tight buffer cap:
+                        # legit cost is ~2x bufsize + overhead, ~6 KB/conn at 40k+ scale;
+                        # 16 KB catches a real per-conn leak with margin)
 REGRESS_TOL=0.05        # the non-objective throughput/instr metric may not drop >5%
 
 # --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------

@@ -24,11 +24,16 @@ git checkout -q "$OPT_BRANCH" || { LOG "cannot checkout $OPT_BRANCH"; exit 1; }
 best_score(){ python3 -c "import json;print(json.load(open('$BEST')).get('score',0))" 2>/dev/null || echo 0; }
 wt_revert(){ git checkout -- . 2>/dev/null; git clean -fdq $ALLOWED_PATHS 2>/dev/null; }  # pre-commit (no reset!)
 
+OTHER_OBJ=instr_pc; [ "$OBJECTIVE" = instr_pc ] && OTHER_OBJ=bytes_per_cpu
 if [ ! -f "$BEST" ]; then
-  LOG "no champion -> scoring baseline"
+  LOG "no champion -> scoring baseline (objective=$OBJECTIVE)"
   base=$(bash optimizer/score.sh 2>>"$RESULTS_DIR/loop-logs/score.log" | python3 -c "import sys,json;print(json.load(sys.stdin).get('score',0))" 2>/dev/null || echo 0)
-  python3 -c "import json;json.dump({'score':float('$base'),'note':'baseline'},open('$BEST','w'))"
-  LOG "baseline champion=$base"
+  # Also measure the OTHER objective once, so the no-regress gate has a baseline
+  # to protect from iteration 1 (a candidate may not regress it below this).
+  LOG "baseline: measuring cross-objective '$OTHER_OBJ' for the no-regress gate"
+  cross=$(OBJECTIVE=$OTHER_OBJ PORT_BASE=44000 bash optimizer/score.sh 2>>"$RESULTS_DIR/loop-logs/score.log" | python3 -c "import sys,json;print(json.load(sys.stdin).get('score',0))" 2>/dev/null || echo 0)
+  python3 -c "import json;json.dump({'score':float('$base'),'cross_score':float('$cross'),'note':'baseline'},open('$BEST','w'))"
+  LOG "baseline champion=$base cross($OTHER_OBJ)=$cross"
 fi
 
 SID=""; iter=0; no_improve=0; CUM=0
@@ -74,8 +79,28 @@ while [ "$iter" -lt "$MAX_ITERS" ]; do
   if awk -v s="$score" 'BEGIN{exit !(s<=0)}'; then
     VERDICT="revert-fail"; git reset --hard HEAD~1 -q; no_improve=$((no_improve+1))
   elif awk -v s="$score" -v t="$thresh" 'BEGIN{exit !(s>t)}'; then
-    VERDICT="promote"; python3 -c "import json;json.dump({'score':float('$score'),'hash':'$(git rev-parse HEAD)','note':'champion'},open('$BEST','w'))"; no_improve=0
-    LOG "*** NEW CHAMPION score=$score (was $best) ***"
+    # Beats the champion on the OBJECTIVE. Before promoting, it must clear the
+    # cross-workload no-regress gate suite (flood-survive + RSS-slope + the OTHER
+    # objective) — this is how we "optimize on everything" without a weighted score.
+    if [ "${RUN_GATE_SUITE:-1}" = 1 ]; then
+      cb=$(python3 -c "import json;print(json.load(open('$BEST')).get('cross_score',''))" 2>/dev/null || echo "")
+      gs=$(CROSS_BASELINE="$cb" bash optimizer/gate-suite.sh 2>>"$RESULTS_DIR/loop-logs/gate-suite.log")
+      gpass=$(echo "$gs" | python3 -c "import sys,json;print(json.load(sys.stdin).get('pass',0))" 2>/dev/null || echo 0)
+      greason=$(echo "$gs" | python3 -c "import sys,json;print(json.load(sys.stdin).get('reason','?'))" 2>/dev/null || echo '?')
+      gcross=$(echo "$gs" | python3 -c "import sys,json;print(json.load(sys.stdin).get('cross_score',0))" 2>/dev/null || echo 0)
+    else
+      gpass=1; greason="suite_off"; gcross="$cb"
+    fi
+    if [ "$gpass" != 1 ]; then
+      VERDICT="revert-gatefail"; reason="gate_$greason"; git reset --hard HEAD~1 -q; no_improve=$((no_improve+1))
+      LOG "objective win REJECTED by gate suite ($greason) -> revert"
+    else
+      # carry the cross-objective score forward (re-measured by the suite) so the
+      # no-regress floor tracks the new champion, not the stale baseline.
+      newcross=$(awk -v g="$gcross" -v b="${cb:-0}" 'BEGIN{print (g>0)?g:b}')
+      VERDICT="promote"; python3 -c "import json;json.dump({'score':float('$score'),'cross_score':float('$newcross' or 0),'hash':'$(git rev-parse HEAD)','note':'champion'},open('$BEST','w'))"; no_improve=0
+      LOG "*** NEW CHAMPION score=$score (was $best); gates ok, cross=$newcross ***"
+    fi
   else
     VERDICT="revert-regression"; git reset --hard HEAD~1 -q; no_improve=$((no_improve+1))
   fi
