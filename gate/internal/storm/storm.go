@@ -76,7 +76,7 @@ func Run(cfg Config) Result {
 				// Junk: zero-byte connect-flood — connect then close, no request,
 				// never reaches upstream. Models the 93%-junk ISP incident.
 				if cfg.JunkPct > 0 && rng.Intn(100) < cfg.JunkPct {
-					c, err := net.Dial("tcp", cfg.Relay)
+					c, err := net.DialTimeout("tcp", cfg.Relay, 3*time.Second)
 					if err != nil {
 						errs.Add(1)
 						continue
@@ -88,11 +88,14 @@ func Run(cfg Config) Result {
 					continue
 				}
 				t0 := time.Now()
-				c, err := net.Dial("tcp", cfg.Relay)
+				c, err := net.DialTimeout("tcp", cfg.Relay, 3*time.Second)
 				if err != nil {
 					errs.Add(1)
 					continue
 				}
+				// Deadline so a stalled/overwhelmed relay yields a counted error,
+				// never a hung worker (the harness must report degradation).
+				c.SetDeadline(time.Now().Add(5 * time.Second))
 				if _, err := c.Write(req); err != nil {
 					errs.Add(1)
 					c.Close()

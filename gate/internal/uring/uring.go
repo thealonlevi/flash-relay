@@ -53,14 +53,21 @@ const (
 
 // Opcodes (subset used by the gate).
 const (
-	opNop    = 0
-	OpAccept = 13
+	opNop     = 0
+	OpTimeout = 11
+	OpAccept  = 13
 	OpConnect = 16
-	OpClose  = 19
-	OpRead   = 22
-	OpSend   = 26
-	OpRecv   = 27
+	OpClose   = 19
+	OpRead    = 22
+	OpSend    = 26
+	OpRecv    = 27
 )
+
+// Timespec mirrors struct __kernel_timespec (for OpTimeout).
+type Timespec struct {
+	Sec  int64
+	Nsec int64
+}
 
 // SQE mirrors struct io_uring_sqe (64 bytes). Field offsets are load-bearing —
 // do not reorder.
@@ -337,6 +344,19 @@ func PrepSend(s *SQE, fd int, buf []byte, flags uint32, ud uint64) {
 func PrepClose(s *SQE, fd int, ud uint64) {
 	s.Opcode = OpClose
 	s.Fd = int32(fd)
+	s.UserData = ud
+}
+
+// PrepTimeout prepares a relative timeout that completes (res = -ETIME) after
+// ts elapses. Keep it always armed so the ring worker can never block forever in
+// io_uring_enter waiting for a completion that won't come (the flood deadlock).
+// ts must stay alive until the CQE (kernel reads it asynchronously).
+func PrepTimeout(s *SQE, ts *Timespec, ud uint64) {
+	s.Opcode = OpTimeout
+	s.Fd = -1
+	s.Addr = uint64(uintptr(unsafe.Pointer(ts)))
+	s.Len = 1 // one timespec
+	s.Off = 0 // count=0: fire purely on the timeout
 	s.UserData = ud
 }
 

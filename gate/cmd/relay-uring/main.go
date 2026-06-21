@@ -44,6 +44,7 @@ const (
 	opC2USend // send to upstream
 	opU2CRecv // recv on upstream
 	opU2CSend // send to client
+	opTimeout // periodic liveness timeout (deadlock-proofing under flood)
 )
 
 func ud(id uint64, op uint8) uint64 { return id<<8 | uint64(op) }
@@ -122,6 +123,7 @@ func main() {
 	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness; no netpoller)")
 	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3) instead of one-shot churn")
 	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
+	maxConns := flag.Int("maxconns", 50000, "accept backpressure cap: shed (accept→close) new connections above this many live (flood safety)")
 	flag.Parse()
 
 	var delay hook.DelayFunc = hook.NoDelay()
@@ -194,17 +196,33 @@ func main() {
 		}
 	}
 
+	acceptArmed := false
+	// SINGLE-SHOT accept (not multishot): one accept in flight, re-armed by the
+	// main loop only while under the backpressure cap. Multishot delivers accept
+	// CQEs with no flow control and overflows the CQ under a connect-flood ->
+	// io_uring_enter stalls (the wedge). Single-shot lets us pace acceptance to
+	// what the worker can drain. (Multishot is a closed-loop throughput win but
+	// flood-unsafe without cancellation-based pausing — future work.)
 	postAccept := func() {
-		post(func(s *uring.SQE) { uring.PrepAcceptMultishot(s, ln.FD, ud(0, opAccept)) })
+		post(func(s *uring.SQE) { uring.PrepAccept(s, ln.FD, ud(0, opAccept)) })
+		acceptArmed = true
 	}
 	postEventfd := func() {
 		post(func(s *uring.SQE) { uring.PrepRead(s, br.efd, efdBuf, ud(0, opEventfd)) })
 	}
+	// Always-armed liveness timeout: guarantees the worker wakes at least every
+	// 100ms, so io_uring_enter (Submit waitNr=1) can NEVER block forever even if
+	// the accept SQE is momentarily lost — this is the flood-deadlock fix.
+	tspec := uring.Timespec{Sec: 0, Nsec: 100 * 1000 * 1000}
+	postTimeout := func() {
+		post(func(s *uring.SQE) { uring.PrepTimeout(s, &tspec, ud(0, opTimeout)) })
+	}
 
 	postAccept()
 	postEventfd()
+	postTimeout()
 
-	var accepted, completed, errs uint64
+	var accepted, completed, shed, errs uint64
 	var completedStat atomic.Uint64
 	if *statsFile != "" {
 		go func() {
@@ -226,16 +244,22 @@ func main() {
 			res := cqe.Res
 			switch op {
 			case opAccept:
-				// Multishot accept stays armed across connections; only re-arm
-				// when the kernel signals the SQE is done (CQEFMore cleared).
-				if cqe.Flags&uring.CQEFMore == 0 {
-					postAccept()
-				}
+				// Single-shot: this accept SQE is consumed. The main loop re-arms
+				// one accept iff under the cap (backpressure).
+				acceptArmed = false
 				if res < 0 {
 					errs++
 					break
 				}
 				accepted++
+				// Backpressure: above the cap, SHED (accept→close) instead of
+				// allocating a conn. Bounds memory/fds under a connect-flood so
+				// the worker never falls unboundedly behind (the wedge).
+				if len(conns) >= *maxConns {
+					shed++
+					post(func(s *uring.SQE) { uring.PrepClose(s, int(res), ud(0, opClose)) })
+					break
+				}
 				nextID++
 				c := &conn{
 					id:       nextID,
@@ -389,13 +413,24 @@ func main() {
 				if c.closesLeft <= 0 {
 					delete(conns, id)
 				}
+
+			case opTimeout:
+				postTimeout() // re-arm the liveness timeout (res = -ETIME, expected)
 			}
 		}
 		ring.CQAdvance(n)
 
+		// Re-arm accept if it was lost (multishot ended) and we're under the
+		// backpressure cap. This is the other half of the deadlock fix: combined
+		// with the always-armed timeout, the worker can never be left with nothing
+		// that will complete.
+		if !acceptArmed && len(conns) < *maxConns {
+			postAccept()
+		}
+
 		if time.Since(lastLog) >= 2*time.Second {
-			log.Printf("uring accepted=%d completed=%d errs=%d live=%d",
-				accepted, completed, errs, len(conns))
+			log.Printf("uring accepted=%d completed=%d shed=%d errs=%d live=%d",
+				accepted, completed, shed, errs, len(conns))
 			lastLog = time.Now()
 		}
 	}
