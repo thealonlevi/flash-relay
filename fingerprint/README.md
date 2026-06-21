@@ -71,8 +71,8 @@ profile emits the exact TTL + option layout + wscale of its OS; macOS matches th
 live Mac capture byte-for-byte (modulo path-MSS); unmarked traffic passes through as
 untouched Linux; handshake + data survive (incl. the grow/shrink paths).
 
-**Cost (eBPF off vs on, 1-core loopback; three program variants measured —
-rewrite-all, direct-packet-access, mark-based — all agree):**
+**Cost (eBPF off vs on, 1-core loopback; measured across rewrite-all,
+direct-packet-access, mark-based, AND the change_tail grow profile — all agree):**
 
 | Aspect | Impact |
 |---|---|
@@ -81,30 +81,31 @@ rewrite-all, direct-packet-access, mark-based — all agree):**
 
 **The cost is the per-packet tc-egress *dispatch*** (the hook is invoked on every
 egress packet), **not** the program logic or the rewrite — confirmed because
-direct-packet-access and mark-gating (both of which slash the program's work) did
-*not* move the number. Throughput is unaffected because few large packets amortize
-the dispatch; churn shows it because it's more packets per unit work. It's
-intrinsic to tc-egress. Only levers: a `flower` SYN-prefilter (marginal) or
-`sock_ops` (connect-time only — but can't reorder options).
+direct-packet-access, mark-gating, AND the macOS `skb_change_tail` grow (the most
+complex profile) all measure the same +3.8% churn / ~0% throughput. The per-SYN
+rewrite (even with a packet resize) is dwarfed by the per-packet dispatch.
+Throughput is unaffected because few large packets amortize the dispatch; churn
+shows it because it's more packets per unit work. It's intrinsic to tc-egress. Only
+levers: a `flower` SYN-prefilter (marginal) or `sock_ops` (connect-time only — but
+can't reorder options).
 
-## Remaining work (precise approaches)
+## Remaining work (real-NIC / deploy only)
 
-1. **macOS resize (mark 2).** Snapshot the option fields, `bpf_skb_change_tail(skb,
-   len+4)`, re-fetch pointers, write the 24-byte macOS layout, set TCP data-offset
-   10→11, IP total-length 60→64, recompute IP checksum. **TCP checksum** has three
-   components: option bytes (`csum_diff` old20 vs new24), the data-offset byte, and
-   the **pseudo-header length** 40→44 (`bpf_l4_csum_replace(..., BPF_F_PSEUDO_HDR)`).
-   *Deferred:* the TCP checksum can't be validated on loopback (offload doesn't
-   verify it) — needs a real-NIC capture, so it's a deploy-time task, not an
-   overnight one.
-2. **window/wscale fidelity (all profiles, for a full p0f OS-*label* match).** Set
-   `SO_RCVBUF` on the upstream socket so the kernel emits the target wscale (and
-   initial window). **Loopback can't reach it**: loopback MSS is 65495, so the
-   advertised window can't be the ~8192 real OSes use — a full p0f OS-label match
-   needs a real NIC (MSS ~1460). On loopback we can validate the *option layout +
-   TTL* (the structural signal), which we do.
-3. **Real-NIC validation.** Confirm TCP checksums under real TX offload and diff the
-   emitted SYN against real macOS/Windows/Android captures (and p0f's OS label) on
-   the egress box.
-4. **Cut the per-packet dispatch** (if churn CPU matters): `flower` filter matching
-   SYN-only so the eBPF action runs only on SYNs.
+The eBPF profiles (TTL + option layout, incl. grow/shrink) and the wscale via
+`SO_RCVBUF` are done + validated on loopback. What's left needs the real egress box:
+the exact **window value** (loopback MSS 65495 distorts it), **TCP-checksum under
+real TX offload** (loopback offload masks it — IP csum is validated), and the final
+**p0f/JA4T OS-label** confirmation. Run `validate.sh <nic>` + `p0f -i <nic>` there.
+Real Win10/Android/iOS device captures would pin their wscale exactly (macOS is
+already pinned from a live capture).
+
+### Implementation notes
+
+- **Length-changing options (macOS grow +4, Windows shrink −8):** `bpf_skb_change_tail`,
+  re-fetch pointers, write the new option layout, fix TCP data-offset, IP total-length,
+  recompute IP checksum. **TCP checksum** is incremental (offload-correct): option
+  bytes (`csum_diff`), the data-offset byte, and the pseudo-header length
+  (`bpf_l4_csum_replace(..., BPF_F_PSEUDO_HDR)`). Verifier rule: do all direct packet
+  writes *before* any csum helper (they invalidate packet pointers).
+- **Optional optimization** (if the +3.8% accept-path churn matters): a `flower`
+  SYN-prefilter so the eBPF action runs only on SYNs, not every egress packet.
