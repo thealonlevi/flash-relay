@@ -22,7 +22,7 @@ git rev-parse --verify "$OPT_BRANCH" >/dev/null 2>&1 || git branch "$OPT_BRANCH"
 git checkout -q "$OPT_BRANCH" || { LOG "cannot checkout $OPT_BRANCH"; exit 1; }
 
 best_score(){ python3 -c "import json;print(json.load(open('$BEST')).get('score',0))" 2>/dev/null || echo 0; }
-wt_revert(){ git checkout -- . 2>/dev/null; git clean -fdq gate 2>/dev/null; }  # pre-commit (no reset!)
+wt_revert(){ git checkout -- . 2>/dev/null; git clean -fdq $ALLOWED_PATHS 2>/dev/null; }  # pre-commit (no reset!)
 
 if [ ! -f "$BEST" ]; then
   LOG "no champion -> scoring baseline"
@@ -52,16 +52,17 @@ while [ "$iter" -lt "$MAX_ITERS" ]; do
   LOG "claude in_tok=$intok cost=\$$cost hyp='${HYP:0:70}'"
   [ "${intok:-0}" -gt "$CTX_ROTATE_TOKENS" ] && { LOG "ctx>$CTX_ROTATE_TOKENS -> rotate session"; SID=""; }
 
-  # enforce the LOCKED contract: only gate/ changes are considered/committed.
-  # (Scope to gate/ so supervisor files like optimizer/MONITOR.md and .gitignore
-  # don't get mistaken for optimizer edits. ALLOWED_PATHS then locks within gate/.)
-  changed=$(git status --porcelain -- gate | awk '{print $2}')
-  [ -z "$changed" ] && { LOG "no gate changes -> skip measure"; continue; }
+  # enforce the LOCKED contract: only ALLOWED_PATHS changes are considered/committed.
+  # (Scope the pathspec to ALLOWED_PATHS — precise dirs: internal/uring +
+  # gate/cmd/relay-uring — so supervisor files (optimizer/, .gitignore) and the
+  # shippable library (flashrelay/) can never be mistaken for an optimizer edit.)
+  changed=$(git status --porcelain -- $ALLOWED_PATHS | awk '{print $2}')
+  [ -z "$changed" ] && { LOG "no allowed-path changes -> skip measure"; continue; }
   viol=0
   for f in $changed; do ok=0; for p in $ALLOWED_PATHS; do case "$f" in $p/*) ok=1;; esac; done; [ "$ok" = 0 ] && { LOG "VIOLATION edit outside allowed: $f"; viol=1; }; done
   [ "$viol" = 1 ] && { wt_revert; no_improve=$((no_improve+1)); continue; }
 
-  git add -A -- gate
+  git add -A -- $ALLOWED_PATHS
   git commit -q -m "optimize(iter $iter): ${HYP:-mutation}" --author="optimizer <opt@flash-relay.local>"
 
   res=$(bash optimizer/score.sh 2>>"$RESULTS_DIR/loop-logs/score.log")

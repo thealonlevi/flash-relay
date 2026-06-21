@@ -42,7 +42,7 @@ trap cleanup EXIT
 pkill -x relay-uring 2>/dev/null || true; pkill -x sink 2>/dev/null || true; pkill -x loadgen 2>/dev/null || true; sleep 0.5
 
 # --- gate 0: ring unit tests (correctness of the mutated primitives) --------
-if ! go test ./gate/internal/uring/ >/tmp/opt-gotest.log 2>&1; then
+if ! go test ./internal/uring/ >/tmp/opt-gotest.log 2>&1; then
   log "ring unit tests FAILED -> score 0"; emit '{"score":0,"reason":"ring_test_fail"}'
 fi
 # --- gate 1: build ----------------------------------------------------------

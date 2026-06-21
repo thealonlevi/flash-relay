@@ -40,3 +40,6 @@ gate/results/**/*.load.json
 
 # local Claude Code settings (never commit — machine/run-specific)
 .claude/settings.local.json
+
+# optimizer fast-validation override (never committed)
+optimizer/config.local

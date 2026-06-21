@@ -13,6 +13,16 @@ SPORT=18100         # sink listen
 DPORT=18200         # relay listen for the duplex correctness smoke
 EPORT=18300         # echo sink for the duplex smoke
 
+# --- objective (what the inner loop maximizes — ONE per campaign) ------------
+# instr_pc      : churn workload, SCORE = 1e9/instr_per_conn (accept-path/CPU wins,
+#                 e.g. registered descriptors). The default.
+# bytes_per_cpu : B4 bulk-throughput workload, SCORE = relayed_bytes / instructions
+#                 * 1e6 (data-plane wins, e.g. splice). Run a separate campaign.
+# The chosen objective is the maximize-target; EVERY other metric is protected as a
+# no-regress gate in the promotion suite (gate-suite.sh) — that is how we "optimize
+# on everything" without a magic weighted score.
+OBJECTIVE="${OBJECTIVE:-instr_pc}"
+
 # --- workload (B2-style churn, CPU-bound on loopback) -----------------------
 REQLEN=64
 REPLYLEN=256
@@ -23,13 +33,31 @@ MEASURE=5
 N=5                 # reps per scored config; score = mean(1e9/instr_per_conn). budget is not a constraint -> more reps = less noise
 SETTLE=1
 
+# --- B4 bulk-throughput workload (for OBJECTIVE=bytes_per_cpu) ---------------
+TPORT=18400         # relay listen for the bulk-throughput arm
+TEPORT=18500        # echo sink for the bulk-throughput arm
+BULK_CONNS=64       # concurrent long-lived bulk transfers
+BULK_BYTES=4194304  # bytes pushed per conn per direction (4 MiB)
+
 # --- anti-cheat gate (any failure => score 0) -------------------------------
 DROP_CEILING=0.001  # connection failure rate ceiling
 TWO_FD_TOL=0.10     # sink-served must be within 10% of completed (proves it dialed upstream)
 DUPLEX_SMOKE_CONNS=10  # long-lived echo conns that must all succeed (duplex not broken)
 
+# --- promotion gate suite (cross-workload no-regress; runs only on a candidate
+#     that beats the champion — the expensive checks stay off the inner loop) --
+RUN_GATE_SUITE="${RUN_GATE_SUITE:-1}"   # 0 disables (debug only)
+FLOOD_CONNS=2000        # connect-flood concurrency for the deadlock/CPU gate
+FLOOD_SECS=8            # flood duration
+FLOOD_CPU_CEIL=1.30     # flood CPU/conn must stay within 1.30x of the champion's
+HOLD_CONNS=20000        # held-connection count for the RSS-slope gate
+RSS_SLOPE_CEIL=8192     # max bytes/conn of relay RSS at HOLD_CONNS (leak guard)
+REGRESS_TOL=0.05        # the non-objective throughput/instr metric may not drop >5%
+
 # --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------
-ALLOWED_PATHS="gate/internal/uring gate/cmd/relay-uring"
+# The ring (internal/uring) is shared by the library + the SUT, so a ring win
+# lands in both; engine logic in flashrelay/ is hand-ported, never auto-edited.
+ALLOWED_PATHS="internal/uring gate/cmd/relay-uring"
 
 # --- optimizer loop knobs ---------------------------------------------------
 EPSILON=0.03        # promote only if >3% better than champion (above noise)
