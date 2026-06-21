@@ -50,7 +50,12 @@ const (
 	opC2USend // send to upstream
 	opU2CRecv // recv on upstream
 	opU2CSend // send to client
-	opTimeout // periodic liveness timeout (deadlock-proofing under flood)
+	// splice duplex ops (-splice): zero-copy socket->pipe->socket, two splices/dir
+	opC2USpliceIn  // splice client -> c2u pipe
+	opC2USpliceOut // splice c2u pipe -> upstream
+	opU2CSpliceIn  // splice upstream -> u2c pipe
+	opU2CSpliceOut // splice u2c pipe -> client
+	opTimeout      // periodic liveness timeout (deadlock-proofing under flood)
 )
 
 func ud(id uint64, op uint8) uint64   { return id<<8 | uint64(op) }
@@ -95,6 +100,9 @@ type conn struct {
 	clientReadDone     bool // client half-closed its write (c->u EOF); upstream SHUT_WR propagated
 	upstreamReadDone   bool // upstream half-closed (u->c EOF); client SHUT_WR propagated
 	bytesC2U, bytesU2C uint64
+	// splice mode: per-direction kernel pipe (socket->pipe->socket, zero-copy).
+	c2uPipe, u2cPipe     [2]int // [0]=read end, [1]=write end
+	c2uInPipe, u2cInPipe int    // bytes buffered in each pipe awaiting drain to the far socket
 }
 
 type hookResult struct {
@@ -135,6 +143,7 @@ type relayCfg struct {
 	ringSize          uint
 	hookWorkers       int
 	duplex            bool
+	splice            bool
 	bufSize, maxConns int
 	acceptBatch       int
 }
@@ -155,6 +164,7 @@ func main() {
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
 	statsFile := flag.String("statsfile", "", "if set, write aggregate 'completed=<n>' here every 250ms")
 	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3)")
+	splice := flag.Bool("splice", false, "EXPERIMENTAL duplex via zero-copy IORING_OP_SPLICE (socket->pipe->socket) instead of recv/send (B4). Single-stream win measured: ~+15% bytes/instr, ~+83% MB/s. KNOWN BUG: deadlocks under saturated bidirectional flow against a synchronous upstream (both directions block mid-pipe-transfer, client close never observed) — needs non-blocking splice + RDHUP teardown before production/campaign use.")
 	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
 	maxConns := flag.Int("maxconns", 50000, "accept backpressure cap PER WORKER: shed above this many live")
 	acceptBatch := flag.Int("acceptbatch", 64, "accepts kept in flight per worker (bounded parallelism: throughput without flooding the CQ)")
@@ -169,7 +179,7 @@ func main() {
 	c := &relayCfg{
 		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort,
 		reqLen: *reqLen, replyLen: *replyLen, authCPU: *authCPU, delay: delay,
-		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex,
+		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex, splice: *splice,
 		bufSize: *bufSize, maxConns: *maxConns, acceptBatch: *acceptBatch,
 	}
 
@@ -247,6 +257,16 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		}
 		cc.closing = true
 		cc.closesLeft = 0
+		if c.splice { // close the per-direction pipe fds (in-flight splices error out, caught by cc.closing)
+			for _, p := range [][2]int{cc.c2uPipe, cc.u2cPipe} {
+				if p[0] > 0 {
+					syscall.Close(p[0])
+				}
+				if p[1] > 0 {
+					syscall.Close(p[1])
+				}
+			}
+		}
 		if cc.clientFD > 0 {
 			cc.closesLeft++
 			post(func(s *uring.SQE) { uring.PrepClose(s, cc.clientFD, ud(cc.id, opClose)) })
@@ -350,6 +370,23 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 					closeConn(cc)
 					break
 				}
+				if c.duplex && c.splice {
+					// Zero-copy: each direction is socket->pipe->socket via two
+					// chained splices. Allocate a kernel pipe per direction, then
+					// arm the inbound splice (socket->pipe) on both sides.
+					if syscall.Pipe(cc.c2uPipe[:]) != nil || syscall.Pipe(cc.u2cPipe[:]) != nil {
+						errs++
+						closeConn(cc)
+						break
+					}
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.clientFD, uring.SpliceOffUnspecified, cc.c2uPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opC2USpliceIn))
+					})
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.upstreamFD, uring.SpliceOffUnspecified, cc.u2cPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opU2CSpliceIn))
+					})
+					break
+				}
 				if c.duplex {
 					cc.c2uBuf = make([]byte, c.bufSize)
 					cc.u2cBuf = make([]byte, c.bufSize)
@@ -443,6 +480,91 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 				}
 				if !cc.upstreamReadDone {
 					post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
+				}
+
+			case opC2USpliceIn: // client -> c2u pipe (zero-copy in)
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				if res < 0 {
+					closeConn(cc)
+					break
+				}
+				if res == 0 { // client EOF -> full teardown. Splice mode is full-close
+					// only: a half-close (SHUT_WR + park in SpliceIn) deadlocks against
+					// the upstream blocking on its echo write. The bulk/throughput
+					// workload full-closes; graceful half-close stays on recv/send.
+					closeConn(cc)
+					break
+				}
+				cc.c2uInPipe = int(res)
+				post(func(s *uring.SQE) {
+					uring.PrepSplice(s, cc.c2uPipe[0], uring.SpliceOffUnspecified, cc.upstreamFD, uring.SpliceOffUnspecified, uint32(cc.c2uInPipe), uring.SpliceFMove, ud(cc.id, opC2USpliceOut))
+				})
+
+			case opC2USpliceOut: // c2u pipe -> upstream (zero-copy out)
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				if res <= 0 {
+					closeConn(cc)
+					break
+				}
+				cc.bytesC2U += uint64(res)
+				cc.c2uInPipe -= int(res)
+				if cc.c2uInPipe > 0 { // partial drain: splice the remainder out of the pipe
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.c2uPipe[0], uring.SpliceOffUnspecified, cc.upstreamFD, uring.SpliceOffUnspecified, uint32(cc.c2uInPipe), uring.SpliceFMove, ud(cc.id, opC2USpliceOut))
+					})
+					break
+				}
+				if !cc.clientReadDone { // pipe drained -> pull more from client
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.clientFD, uring.SpliceOffUnspecified, cc.c2uPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opC2USpliceIn))
+					})
+				}
+
+			case opU2CSpliceIn: // upstream -> u2c pipe
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				if res < 0 {
+					closeConn(cc)
+					break
+				}
+				if res == 0 { // upstream EOF -> full teardown (splice is full-close; see opC2USpliceIn)
+					closeConn(cc)
+					break
+				}
+				cc.u2cInPipe = int(res)
+				post(func(s *uring.SQE) {
+					uring.PrepSplice(s, cc.u2cPipe[0], uring.SpliceOffUnspecified, cc.clientFD, uring.SpliceOffUnspecified, uint32(cc.u2cInPipe), uring.SpliceFMove, ud(cc.id, opU2CSpliceOut))
+				})
+
+			case opU2CSpliceOut: // u2c pipe -> client
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				if res <= 0 {
+					closeConn(cc)
+					break
+				}
+				cc.bytesU2C += uint64(res)
+				cc.u2cInPipe -= int(res)
+				if cc.u2cInPipe > 0 {
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.u2cPipe[0], uring.SpliceOffUnspecified, cc.clientFD, uring.SpliceOffUnspecified, uint32(cc.u2cInPipe), uring.SpliceFMove, ud(cc.id, opU2CSpliceOut))
+					})
+					break
+				}
+				if !cc.upstreamReadDone {
+					post(func(s *uring.SQE) {
+						uring.PrepSplice(s, cc.upstreamFD, uring.SpliceOffUnspecified, cc.u2cPipe[1], uring.SpliceOffUnspecified, uint32(c.bufSize), uring.SpliceFMove, ud(cc.id, opU2CSpliceIn))
+					})
 				}
 
 			case opRecvResp:

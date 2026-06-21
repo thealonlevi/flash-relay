@@ -73,8 +73,9 @@ if [ "$OBJECTIVE" = "bytes_per_cpu" ]; then
   ESTAT=/tmp/opt-echo.stats; rm -f "$ESTAT"
   taskset -c "$SINK_CPU" "$BIN/sink" -addr 127.0.0.1:$TEPORT -echo -statsfile "$ESTAT" >/tmp/opt-echo.log 2>&1 & SINK_PID=$!
   sleep 0.4
+  SPLICE_FLAG=$([ "${BULK_SPLICE:-0}" = 1 ] && echo "-splice")
   taskset -c "$SUT_CPU" env GOMAXPROCS=1 "$BIN/relay-uring" -addr 127.0.0.1 -port $TPORT \
-    -sinkip 127.0.0.1 -sinkport $TEPORT -duplex -bufsize 65536 >/tmp/opt-relay.log 2>&1 & RELAY_PID=$!
+    -sinkip 127.0.0.1 -sinkport $TEPORT -duplex $SPLICE_FLAG -bufsize 65536 >/tmp/opt-relay.log 2>&1 & RELAY_PID=$!
   sleep 1
   kill -0 "$RELAY_PID" 2>/dev/null || { log "relay didn't start"; emit '{"score":0,"reason":"start_fail"}'; }
   # smoke
