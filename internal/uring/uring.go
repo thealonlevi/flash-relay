@@ -61,7 +61,19 @@ const (
 	OpRead    = 22
 	OpSend    = 26
 	OpRecv    = 27
+	OpSplice  = 30
 )
+
+// splice_flags (sqe.OpFlags for OpSplice). Mirror the splice(2) SPLICE_F_* bits.
+const (
+	SpliceFMove     = 1 // SPLICE_F_MOVE: try to move pages rather than copy
+	SpliceFNonblock = 2 // SPLICE_F_NONBLOCK: don't block on the splice itself
+	SpliceFMore     = 4 // SPLICE_F_MORE: more data coming (TCP corking hint)
+)
+
+// SpliceOffUnspecified (-1) is the off_in/off_out value for non-seekable fds
+// (pipes and sockets) — the kernel splices from/to the current file position.
+const SpliceOffUnspecified = int64(-1)
 
 // Timespec mirrors struct __kernel_timespec (for OpTimeout).
 type Timespec struct {
@@ -166,8 +178,8 @@ func New(entries uint32) (*Ring, error) {
 	ring := &Ring{fd: int(r1), sqEntries: p.sqEntries, cqEntries: p.cqEntries}
 	ring.singleMmap = p.features&featSingleMmap != 0
 
-	sqRingSz := p.sqOff.array + p.sqEntries*4         // array is u32 indices
-	cqRingSz := p.cqOff.cqes + p.cqEntries*16         // cqes are 16 bytes each
+	sqRingSz := p.sqOff.array + p.sqEntries*4 // array is u32 indices
+	cqRingSz := p.cqOff.cqes + p.cqEntries*16 // cqes are 16 bytes each
 	if ring.singleMmap {
 		if cqRingSz > sqRingSz {
 			sqRingSz = cqRingSz
@@ -357,6 +369,26 @@ func PrepTimeout(s *SQE, ts *Timespec, ud uint64) {
 	s.Addr = uint64(uintptr(unsafe.Pointer(ts)))
 	s.Len = 1 // one timespec
 	s.Off = 0 // count=0: fire purely on the timeout
+	s.UserData = ud
+}
+
+// PrepSplice prepares a splice of up to nbytes from fdIn to fdOut (zero-copy:
+// pages move through a kernel pipe buffer, never via a userspace buffer). For the
+// relay's socket→pipe→socket path both ends are non-seekable, so pass
+// SpliceOffUnspecified for offIn/offOut. flags is a SpliceF* mask (typically
+// SpliceFMove|SpliceFNonblock). One of fdIn/fdOut MUST be a pipe (the kernel
+// requirement); for relaying that's the per-connection pipe buffer.
+//
+// SQE field overlaps (see the SQE struct): fd_out=Fd, off_out=Off,
+// splice_off_in=Addr, splice_flags=OpFlags, splice_fd_in=SpliceFdIn.
+func PrepSplice(s *SQE, fdIn int, offIn int64, fdOut int, offOut int64, nbytes uint32, flags uint32, ud uint64) {
+	s.Opcode = OpSplice
+	s.Fd = int32(fdOut)
+	s.Off = uint64(offOut)
+	s.Addr = uint64(offIn)
+	s.Len = nbytes
+	s.OpFlags = flags
+	s.SpliceFdIn = int32(fdIn)
 	s.UserData = ud
 }
 
