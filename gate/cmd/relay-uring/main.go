@@ -27,8 +27,8 @@ import (
 
 	"github.com/thealonlevi/flash-relay/gate/internal/hook"
 	"github.com/thealonlevi/flash-relay/gate/internal/proto"
-	"github.com/thealonlevi/flash-relay/gate/internal/rawsock"
-	"github.com/thealonlevi/flash-relay/gate/internal/uring"
+	"github.com/thealonlevi/flash-relay/internal/rawsock"
+	"github.com/thealonlevi/flash-relay/internal/uring"
 )
 
 const (

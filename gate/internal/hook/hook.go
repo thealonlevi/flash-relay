@@ -14,7 +14,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/thealonlevi/flash-relay/gate/internal/rawsock"
+	"github.com/thealonlevi/flash-relay/internal/rawsock"
 )
 
 // DelayFunc returns a (possibly random) dial latency to model. The realistic-dial
