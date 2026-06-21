@@ -1,0 +1,28 @@
+MULTI-CORE TEST  N=6 cores  flood inflight=12000 junk=99%  loopback  2026-06-21T08:33:45Z
+relay cores=0-5 sink=6 loadgen=7,8,9,10,11,12  ports r=31001 s=31695
+
+>>> netpoll : 6 cores, flood inflight=12000 junk=99%
+   6 cores: CPU=1.53 cores used, conn/s=21,251 (junk=400,110 real=3,951 errs=0)
+   conn/s per core used = 13,890
+     Go scheduler                         5.0%  ##
+     kernel lock contention (osq/spin)    4.3%  ##
+     netpoller/epoll                      3.0%  #
+     syscall transition                  17.4%  ########
+     io_uring                             0.0%  
+     GC                                   1.5%  
+     kernel TCP/net                      51.8%  #########################
+     relay code                          15.1%  #######
+     other                                0.3%  
+
+>>> uring : 6 cores, flood inflight=12000 junk=99%
+   6 cores: CPU=1.05 cores used, conn/s=21,228 (junk=399,392 real=3,955 errs=0)
+   conn/s per core used = 20,218
+     Go scheduler                         2.0%  #
+     kernel lock contention (osq/spin)    7.6%  ###
+     netpoller/epoll                      0.0%  
+     syscall transition                   6.1%  ###
+     io_uring                             0.2%  
+     GC                                   1.1%  
+     kernel TCP/net                      75.6%  #####################################
+     relay code                           7.1%  ###
+     other                                0.4%  

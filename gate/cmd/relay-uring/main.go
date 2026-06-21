@@ -1,13 +1,16 @@
 //go:build linux && amd64
 
-// Command relay-uring is the gate SUT: the hand-rolled pure-Go io_uring relay
-// probe. One core, two fds per conn, single-shot accept/recv/send, recv/send
-// relay (splice is B4). The decision hook runs OFF the ring on a worker-goroutine
-// pool; a slow dial parks one connection while the ring keeps going. An eventfd
-// read posted on the ring lets finished hook goroutines wake the worker.
+// Command relay-uring is the gate SUT: the hand-rolled pure-Go io_uring relay.
+// Each worker is a shared-nothing per-core engine: its own SO_REUSEPORT listener,
+// io_uring ring, decision-hook pool, and connection map, pinned to one core. With
+// -workers N you get N independent rings across N cores — NO shared scheduler,
+// NO data-plane fd on the Go netpoller. That shared-nothing design is the answer
+// to the netpoller's cross-core scheduler collapse under high concurrency.
 //
-// NO data-plane fd ever touches the Go netpoller — this is the whole point (B1).
-// See gate/DESIGN.md and RELAY_PLAN.md.
+// Per conn: single-shot accept (flood-safe) + recv/send relay; the decision hook
+// runs OFF the ring on a goroutine pool (a slow dial parks one conn, not the ring);
+// an eventfd read on the ring lets finished hook goroutines wake the worker; an
+// always-armed timeout op makes io_uring_enter unable to wedge under a flood.
 package main
 
 import (
@@ -28,7 +31,10 @@ import (
 	"github.com/thealonlevi/flash-relay/gate/internal/uring"
 )
 
-const sysEventfd2 = 290 // linux/amd64
+const (
+	sysEventfd2         = 290 // linux/amd64
+	sysSchedSetaffinity = 203 // linux/amd64
+)
 
 // op types, packed into the low 8 bits of user_data; conn id in the high bits.
 const (
@@ -47,12 +53,25 @@ const (
 	opTimeout // periodic liveness timeout (deadlock-proofing under flood)
 )
 
-func ud(id uint64, op uint8) uint64 { return id<<8 | uint64(op) }
+func ud(id uint64, op uint8) uint64   { return id<<8 | uint64(op) }
 func unpack(u uint64) (uint64, uint8) { return u >> 8, uint8(u & 0xff) }
 
-// writeStat publishes the completed counter via an atomic file rename (plain
-// file I/O — no netpoller). The 2-box harness reads this to compute conn/s on
-// the SUT box itself.
+// gCompleted aggregates completed conns across all workers (for -statsfile).
+var gCompleted atomic.Uint64
+
+// pinToCore binds the calling OS thread to one CPU (sched_setaffinity), so each
+// worker gets exactly one core — clean shared-nothing per-core engines.
+func pinToCore(core int) {
+	if core < 0 {
+		return
+	}
+	var set [128]byte // cpu_set_t, 1024 CPUs
+	set[core/8] |= 1 << (uint(core) % 8)
+	syscall.Syscall(sysSchedSetaffinity, 0, uintptr(len(set)), uintptr(unsafe.Pointer(&set[0])))
+}
+
+// writeStat publishes the aggregate completed counter via an atomic file rename
+// (plain file I/O — no netpoller). The 2-box harness reads this for conn/s.
 func writeStat(path string, n uint64) {
 	tmp := path + ".tmp"
 	if os.WriteFile(tmp, []byte(fmt.Sprintf("completed=%d\n", n)), 0o644) == nil {
@@ -70,14 +89,12 @@ type conn struct {
 	closing    bool
 	closesLeft int
 	// duplex relay state (allocated only in -duplex mode)
-	c2uBuf   []byte // client -> upstream
-	u2cBuf   []byte // upstream -> client
+	c2uBuf   []byte
+	u2cBuf   []byte
 	bytesC2U uint64
 	bytesU2C uint64
 }
 
-// hookResult is produced by an off-ring hook goroutine and consumed by the ring
-// worker after an eventfd wakeup.
 type hookResult struct {
 	id         uint64
 	upstreamFD int
@@ -95,7 +112,7 @@ func (b *bridge) push(r hookResult) {
 	b.ready = append(b.ready, r)
 	b.mu.Unlock()
 	var one uint64 = 1
-	syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:]) // wake the ring worker
+	syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:])
 }
 
 func (b *bridge) drain() []hookResult {
@@ -106,6 +123,19 @@ func (b *bridge) drain() []hookResult {
 	return r
 }
 
+// relayCfg is the immutable, shared config every worker reads.
+type relayCfg struct {
+	addr, sinkIP      string
+	port, sinkPort    int
+	reqLen, replyLen  int
+	authCPU           time.Duration
+	delay             hook.DelayFunc
+	ringSize          uint
+	hookWorkers       int
+	duplex            bool
+	bufSize, maxConns int
+}
+
 func main() {
 	addr := flag.String("addr", "0.0.0.0", "listen IP")
 	port := flag.Int("port", 9000, "listen port")
@@ -114,52 +144,83 @@ func main() {
 	reqLen := flag.Int("reqlen", proto.DefaultReqLen, "initial request bytes to read")
 	replyLen := flag.Int("replylen", proto.DefaultReplyLen, "upstream reply bytes buffer")
 	authCPU := flag.Duration("authcpu", 5*time.Microsecond, "auth CPU busy-spin per conn")
-	ringSize := flag.Uint("ring", 4096, "io_uring SQ entries")
-	hookWorkers := flag.Int("hookworkers", 256, "off-ring decision-hook goroutines")
+	ringSize := flag.Uint("ring", 4096, "io_uring SQ entries per worker")
+	hookWorkers := flag.Int("hookworkers", 256, "off-ring decision-hook goroutines per worker")
 	realistic := flag.Bool("realistic", false, "realistic-dial: sample ms-scale dial latency")
 	dialP50 := flag.Float64("dialp50", 20, "realistic dial median ms")
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
-	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness; no netpoller)")
-	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3) instead of one-shot churn")
+	statsFile := flag.String("statsfile", "", "if set, write aggregate 'completed=<n>' here every 250ms")
+	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3)")
 	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
-	maxConns := flag.Int("maxconns", 50000, "accept backpressure cap: shed (accept→close) new connections above this many live (flood safety)")
+	maxConns := flag.Int("maxconns", 50000, "accept backpressure cap PER WORKER: shed above this many live")
+	workers := flag.Int("workers", 1, "number of shared-nothing per-core ring workers (SO_REUSEPORT)")
+	startCore := flag.Int("startcore", -1, "pin worker i to core startcore+i (-1 = no pinning)")
 	flag.Parse()
 
-	var delay hook.DelayFunc = hook.NoDelay()
+	delay := hook.NoDelay()
 	if *realistic {
 		delay = hook.Lognormal(*dialP50, *dialSigma, *dialCap, 1)
 	}
-	hcfg := hook.Config{AuthCPU: *authCPU, Delay: delay, SinkIP: *sinkIP, SinkPort: *sinkPort}
-
-	ln, err := rawsock.Listen(*addr, *port, 4096)
-	if err != nil {
-		log.Fatalf("listen: %v", err)
+	c := &relayCfg{
+		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort,
+		reqLen: *reqLen, replyLen: *replyLen, authCPU: *authCPU, delay: delay,
+		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex,
+		bufSize: *bufSize, maxConns: *maxConns,
 	}
-	log.Printf("relay-uring (SUT) on %s:%d -> sink %s:%d (authcpu=%v realistic=%v hookworkers=%d)",
-		*addr, ln.Port, *sinkIP, *sinkPort, *authCPU, *realistic, *hookWorkers)
 
-	efd, _, errno := syscall.Syscall(sysEventfd2, 0, 0, 0)
-	if errno != 0 {
-		log.Fatalf("eventfd2: %v", errno)
-	}
-	br := &bridge{efd: int(efd)}
-
-	// Off-ring decision-hook pool. Jobs are conn ids; results go via the bridge.
-	jobs := make(chan uint64, 1<<16)
-	for i := 0; i < *hookWorkers; i++ {
+	if *statsFile != "" {
 		go func() {
-			for id := range jobs {
-				fd, err := hcfg.Decide()
-				br.push(hookResult{id: id, upstreamFD: fd, ok: err == nil})
+			for range time.Tick(250 * time.Millisecond) {
+				writeStat(*statsFile, gCompleted.Load())
 			}
 		}()
 	}
 
-	runtime.LockOSThread() // pin the ring worker to its OS thread
-	ring, err := uring.New(uint32(*ringSize))
+	log.Printf("relay-uring (SUT) :%d -> sink %s:%d  workers=%d startcore=%d duplex=%v maxconns=%d/worker",
+		*port, *sinkIP, *sinkPort, *workers, *startCore, *duplex, *maxConns)
+
+	// Create the N SO_REUSEPORT listeners SEQUENTIALLY here (the kernel's
+	// reuseport-group setup races if N sockets bind the same port concurrently),
+	// then hand one to each worker. Kernel load-balances accepts across them.
+	for i := 0; i < *workers; i++ {
+		ln, err := rawsock.Listen(c.addr, c.port, 4096)
+		if err != nil {
+			log.Fatalf("listener %d: %v", i, err)
+		}
+		core := -1
+		if *startCore >= 0 {
+			core = *startCore + i
+		}
+		go worker(i, core, ln, c)
+	}
+	select {} // workers run forever
+}
+
+// worker is one shared-nothing per-core ring engine.
+func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
+	runtime.LockOSThread()
+	pinToCore(core)
+
+	efd, _, errno := syscall.Syscall(sysEventfd2, 0, 0, 0)
+	if errno != 0 {
+		log.Fatalf("worker %d eventfd2: %v", id, errno)
+	}
+	br := &bridge{efd: int(efd)}
+	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort}
+	jobs := make(chan uint64, 1<<16)
+	for i := 0; i < c.hookWorkers; i++ {
+		go func() {
+			for cid := range jobs {
+				fd, err := hcfg.Decide()
+				br.push(hookResult{id: cid, upstreamFD: fd, ok: err == nil})
+			}
+		}()
+	}
+
+	ring, err := uring.New(uint32(c.ringSize))
 	if err != nil {
-		log.Fatalf("uring.New: %v", err)
+		log.Fatalf("worker %d uring.New: %v", id, err)
 	}
 	defer ring.Close()
 
@@ -173,36 +234,29 @@ func main() {
 				prep(s)
 				return
 			}
-			ring.Submit(0) // SQ full: flush to free entries, then retry
+			ring.Submit(0)
 		}
 	}
-
-	closeConn := func(c *conn) {
-		if c.closing {
+	closeConn := func(cc *conn) {
+		if cc.closing {
 			return
 		}
-		c.closing = true
-		c.closesLeft = 0
-		if c.clientFD > 0 {
-			c.closesLeft++
-			post(func(s *uring.SQE) { uring.PrepClose(s, c.clientFD, ud(c.id, opClose)) })
+		cc.closing = true
+		cc.closesLeft = 0
+		if cc.clientFD > 0 {
+			cc.closesLeft++
+			post(func(s *uring.SQE) { uring.PrepClose(s, cc.clientFD, ud(cc.id, opClose)) })
 		}
-		if c.upstreamFD > 0 {
-			c.closesLeft++
-			post(func(s *uring.SQE) { uring.PrepClose(s, c.upstreamFD, ud(c.id, opClose)) })
+		if cc.upstreamFD > 0 {
+			cc.closesLeft++
+			post(func(s *uring.SQE) { uring.PrepClose(s, cc.upstreamFD, ud(cc.id, opClose)) })
 		}
-		if c.closesLeft == 0 {
-			delete(conns, c.id)
+		if cc.closesLeft == 0 {
+			delete(conns, cc.id)
 		}
 	}
 
 	acceptArmed := false
-	// SINGLE-SHOT accept (not multishot): one accept in flight, re-armed by the
-	// main loop only while under the backpressure cap. Multishot delivers accept
-	// CQEs with no flow control and overflows the CQ under a connect-flood ->
-	// io_uring_enter stalls (the wedge). Single-shot lets us pace acceptance to
-	// what the worker can drain. (Multishot is a closed-loop throughput win but
-	// flood-unsafe without cancellation-based pausing — future work.)
 	postAccept := func() {
 		post(func(s *uring.SQE) { uring.PrepAccept(s, ln.FD, ud(0, opAccept)) })
 		acceptArmed = true
@@ -210,9 +264,6 @@ func main() {
 	postEventfd := func() {
 		post(func(s *uring.SQE) { uring.PrepRead(s, br.efd, efdBuf, ud(0, opEventfd)) })
 	}
-	// Always-armed liveness timeout: guarantees the worker wakes at least every
-	// 100ms, so io_uring_enter (Submit waitNr=1) can NEVER block forever even if
-	// the accept SQE is momentarily lost — this is the flood-deadlock fix.
 	tspec := uring.Timespec{Sec: 0, Nsec: 100 * 1000 * 1000}
 	postTimeout := func() {
 		post(func(s *uring.SQE) { uring.PrepTimeout(s, &tspec, ud(0, opTimeout)) })
@@ -223,59 +274,41 @@ func main() {
 	postTimeout()
 
 	var accepted, completed, shed, errs uint64
-	var completedStat atomic.Uint64
-	if *statsFile != "" {
-		go func() {
-			for range time.Tick(250 * time.Millisecond) {
-				writeStat(*statsFile, completedStat.Load())
-			}
-		}()
-	}
 	lastLog := time.Now()
 
 	for {
 		if _, err := ring.Submit(1); err != nil {
-			log.Fatalf("submit: %v", err)
+			log.Fatalf("worker %d submit: %v", id, err)
 		}
 		n := ring.CQReady()
 		for i := uint32(0); i < n; i++ {
 			cqe := ring.PeekCQE(i)
-			id, op := unpack(cqe.UserData)
+			cid, op := unpack(cqe.UserData)
 			res := cqe.Res
 			switch op {
 			case opAccept:
-				// Single-shot: this accept SQE is consumed. The main loop re-arms
-				// one accept iff under the cap (backpressure).
-				acceptArmed = false
+				acceptArmed = false // single-shot consumed; main loop re-arms under cap
 				if res < 0 {
 					errs++
 					break
 				}
 				accepted++
-				// Backpressure: above the cap, SHED (accept→close) instead of
-				// allocating a conn. Bounds memory/fds under a connect-flood so
-				// the worker never falls unboundedly behind (the wedge).
-				if len(conns) >= *maxConns {
+				if len(conns) >= c.maxConns {
 					shed++
 					post(func(s *uring.SQE) { uring.PrepClose(s, int(res), ud(0, opClose)) })
 					break
 				}
 				nextID++
-				c := &conn{
-					id:       nextID,
-					clientFD: int(res),
-					reqBuf:   make([]byte, *reqLen),
-					respBuf:  make([]byte, *replyLen),
-				}
-				conns[c.id] = c
-				cid := c.id
-				post(func(s *uring.SQE) { uring.PrepRecv(s, c.clientFD, c.reqBuf, ud(cid, opRecvReq)) })
+				cc := &conn{id: nextID, clientFD: int(res), reqBuf: make([]byte, c.reqLen), respBuf: make([]byte, c.replyLen)}
+				conns[cc.id] = cc
+				ncid := cc.id
+				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.reqBuf, ud(ncid, opRecvReq)) })
 
 			case opEventfd:
 				postEventfd()
 				for _, r := range br.drain() {
-					c := conns[r.id]
-					if c == nil {
+					cc := conns[r.id]
+					if cc == nil {
 						if r.ok && r.upstreamFD > 0 {
 							syscall.Close(r.upstreamFD)
 						}
@@ -283,154 +316,142 @@ func main() {
 					}
 					if !r.ok {
 						errs++
-						closeConn(c)
+						closeConn(cc)
 						continue
 					}
-					c.upstreamFD = r.upstreamFD
-					post(func(s *uring.SQE) {
-						uring.PrepSend(s, c.upstreamFD, c.reqBuf[:c.reqN], 0, ud(c.id, opSendUp))
-					})
+					cc.upstreamFD = r.upstreamFD
+					post(func(s *uring.SQE) { uring.PrepSend(s, cc.upstreamFD, cc.reqBuf[:cc.reqN], 0, ud(cc.id, opSendUp)) })
 				}
 
 			case opRecvReq:
-				c := conns[id]
-				if c == nil {
+				cc := conns[cid]
+				if cc == nil {
 					break
 				}
 				if res <= 0 {
 					errs++
-					closeConn(c)
+					closeConn(cc)
 					break
 				}
-				c.reqN = int(res)
-				jobs <- c.id // hand off to off-ring decision hook
+				cc.reqN = int(res)
+				jobs <- cc.id
 
 			case opSendUp:
-				c := conns[id]
-				if c == nil {
+				cc := conns[cid]
+				if cc == nil {
 					break
 				}
 				if res < 0 {
 					errs++
-					closeConn(c)
+					closeConn(cc)
 					break
 				}
-				if *duplex {
-					// Initial request forwarded; go full duplex. One recv
-					// outstanding per direction; re-armed after its send.
-					c.c2uBuf = make([]byte, *bufSize)
-					c.u2cBuf = make([]byte, *bufSize)
-					post(func(s *uring.SQE) { uring.PrepRecv(s, c.clientFD, c.c2uBuf, ud(c.id, opC2URecv)) })
-					post(func(s *uring.SQE) { uring.PrepRecv(s, c.upstreamFD, c.u2cBuf, ud(c.id, opU2CRecv)) })
+				if c.duplex {
+					cc.c2uBuf = make([]byte, c.bufSize)
+					cc.u2cBuf = make([]byte, c.bufSize)
+					post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.c2uBuf, ud(cc.id, opC2URecv)) })
+					post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
 					break
 				}
-				post(func(s *uring.SQE) {
-					uring.PrepRecv(s, c.upstreamFD, c.respBuf, ud(c.id, opRecvResp))
-				})
+				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.respBuf, ud(cc.id, opRecvResp)) })
 
-			case opC2URecv: // client -> upstream
-				c := conns[id]
-				if c == nil || c.closing {
+			case opC2URecv:
+				cc := conns[cid]
+				if cc == nil || cc.closing {
 					break
 				}
-				if res <= 0 { // client half-closed or error
-					closeConn(c)
+				if res <= 0 {
+					closeConn(cc)
 					break
 				}
-				n := int(res)
-				c.bytesC2U += uint64(n)
-				post(func(s *uring.SQE) { uring.PrepSend(s, c.upstreamFD, c.c2uBuf[:n], 0, ud(c.id, opC2USend)) })
+				nb := int(res)
+				cc.bytesC2U += uint64(nb)
+				post(func(s *uring.SQE) { uring.PrepSend(s, cc.upstreamFD, cc.c2uBuf[:nb], 0, ud(cc.id, opC2USend)) })
 
 			case opC2USend:
-				c := conns[id]
-				if c == nil || c.closing {
+				cc := conns[cid]
+				if cc == nil || cc.closing {
 					break
 				}
 				if res < 0 {
-					closeConn(c)
+					closeConn(cc)
 					break
 				}
-				post(func(s *uring.SQE) { uring.PrepRecv(s, c.clientFD, c.c2uBuf, ud(c.id, opC2URecv)) })
+				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.c2uBuf, ud(cc.id, opC2URecv)) })
 
-			case opU2CRecv: // upstream -> client
-				c := conns[id]
-				if c == nil || c.closing {
+			case opU2CRecv:
+				cc := conns[cid]
+				if cc == nil || cc.closing {
 					break
 				}
-				if res <= 0 { // upstream half-closed or error
-					closeConn(c)
+				if res <= 0 {
+					closeConn(cc)
 					break
 				}
-				n := int(res)
-				c.bytesU2C += uint64(n)
-				post(func(s *uring.SQE) { uring.PrepSend(s, c.clientFD, c.u2cBuf[:n], 0, ud(c.id, opU2CSend)) })
+				nb := int(res)
+				cc.bytesU2C += uint64(nb)
+				post(func(s *uring.SQE) { uring.PrepSend(s, cc.clientFD, cc.u2cBuf[:nb], 0, ud(cc.id, opU2CSend)) })
 
 			case opU2CSend:
-				c := conns[id]
-				if c == nil || c.closing {
+				cc := conns[cid]
+				if cc == nil || cc.closing {
 					break
 				}
 				if res < 0 {
-					closeConn(c)
+					closeConn(cc)
 					break
 				}
-				post(func(s *uring.SQE) { uring.PrepRecv(s, c.upstreamFD, c.u2cBuf, ud(c.id, opU2CRecv)) })
+				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
 
 			case opRecvResp:
-				c := conns[id]
-				if c == nil {
+				cc := conns[cid]
+				if cc == nil {
 					break
 				}
 				if res <= 0 {
 					errs++
-					closeConn(c)
+					closeConn(cc)
 					break
 				}
 				rn := int(res)
-				post(func(s *uring.SQE) {
-					uring.PrepSend(s, c.clientFD, c.respBuf[:rn], 0, ud(c.id, opSendClient))
-				})
+				post(func(s *uring.SQE) { uring.PrepSend(s, cc.clientFD, cc.respBuf[:rn], 0, ud(cc.id, opSendClient)) })
 
 			case opSendClient:
-				c := conns[id]
-				if c == nil {
+				cc := conns[cid]
+				if cc == nil {
 					break
 				}
 				if res < 0 {
 					errs++
 				} else {
 					completed++
-					completedStat.Store(completed)
+					gCompleted.Add(1)
 				}
-				closeConn(c)
+				closeConn(cc)
 
 			case opClose:
-				c := conns[id]
-				if c == nil {
+				cc := conns[cid]
+				if cc == nil {
 					break
 				}
-				c.closesLeft--
-				if c.closesLeft <= 0 {
-					delete(conns, id)
+				cc.closesLeft--
+				if cc.closesLeft <= 0 {
+					delete(conns, cid)
 				}
 
 			case opTimeout:
-				postTimeout() // re-arm the liveness timeout (res = -ETIME, expected)
+				postTimeout()
 			}
 		}
 		ring.CQAdvance(n)
 
-		// Re-arm accept if it was lost (multishot ended) and we're under the
-		// backpressure cap. This is the other half of the deadlock fix: combined
-		// with the always-armed timeout, the worker can never be left with nothing
-		// that will complete.
-		if !acceptArmed && len(conns) < *maxConns {
+		if !acceptArmed && len(conns) < c.maxConns {
 			postAccept()
 		}
 
-		if time.Since(lastLog) >= 2*time.Second {
-			log.Printf("uring accepted=%d completed=%d shed=%d errs=%d live=%d",
-				accepted, completed, shed, errs, len(conns))
+		if id == 0 && time.Since(lastLog) >= 2*time.Second {
+			log.Printf("uring w0 accepted=%d completed=%d shed=%d errs=%d live=%d (agg completed=%d)",
+				accepted, completed, shed, errs, len(conns), gCompleted.Load())
 			lastLog = time.Now()
 		}
 	}
