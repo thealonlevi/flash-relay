@@ -191,28 +191,46 @@ goroutine stacks). Both should be **larger** in your prod than our loopback numb
 - riptide **dials upstream itself** with a blocking raw syscall (so the upstream fd never
   hits the netpoller) and hands the connected fd to flash-relay to adopt + relay.
 
-**Built since (prototype):** multi-ring/per-core scaling (`SO_REUSEPORT`, `-workers N` +
-core affinity) — works and measured (above), though the kernel lock-contention at scale and
-a bounded-batch accept (single-shot currently paces establishment) want more work.
+**Now built — an importable library (`flashrelay` Go package), not just a probe.** The
+async-hook + adopt-fd API is implemented and tested end-to-end:
 
-**Not yet built (Step 4 — required before production):** registered/direct descriptors at 100k+ (the fd-table sizing for your
-concurrency — each conn holds 2 fds), clean drain / zero-downtime `SO_REUSEPORT` handoff,
-IPv6 + bind-specific-IP, idle timeouts, per-direction byte counters for datacap/metrics, and
-the full B3–B9 benchmark suite (throughput/Gbps, NUMA scaling, tail-latency-vs-load,
-reuseport fairness). The async-hook + adopt-fd API is designed but should get your sign-off
-before it's locked.
+```go
+srv, _ := flashrelay.New(flashrelay.Config{Addr: "203.0.113.7", Port: 443, Workers: 40}, hook)
+go srv.Run()                                   // blocks; drains in-flight conns on Stop
+// hook: func(req []byte, peer netip.AddrPort) flashrelay.Decision
+//   -> dial upstream off-ring with flashrelay.Dial (netpoller-free), return its fd
+//   -> or {Reject, Reply} to deny
+```
+
+Implemented + tested: multi-ring/per-core scaling (`SO_REUSEPORT`, `Workers` + optional core
+pinning), **bounded-batch accept** (flood-safe; replaces the single-shot pacing), async hook
+with off-ring blocking dial, bidirectional relay with **partial-send + correct half-close**,
+**graceful drain** (`Stop()` → finish in-flight, then exit), **idle timeout**, **per-direction
+byte counters** (`Stat()`), and **IPv6 + bind-specific-IP**. See `examples/echo-relay`.
+
+**Remaining performance/research tail (do as measured follow-ups):** registered/direct
+descriptors at 100k+ (fd-table sizing — each conn holds 2 fds; the highest-value remaining
+CPU optimization), full **B4 splice** integration in the relay path (the zero-copy
+`socket→pipe→socket` primitive is built + validated, `uring.PrepSplice`; wiring it into the
+duplex loop with the fd-count tradeoff is what's left), the multi-ring **kernel
+lock-contention** investigation (~7.6% at scale), and the rest of the B3–B9 suite
+(throughput/Gbps, NUMA scaling, tail-latency-vs-load, reuseport fairness). None of these block
+a functional integration; they're hardening + tuning, best scored on your hardware with the
+gate harness + optimizer rig.
 
 ---
 
 ## 6. Where the code and evidence live
 
-- Repo: `github.com/thealonlevi/flash-relay`, branch **`optimizer-run`** (fixed relay + all
+- Repo: `github.com/thealonlevi/flash-relay`, branch **`main`** (library + fixed relay + all
   harnesses + results). `RELAY_PLAN.md` is the full plan; `gate/DESIGN.md` is the measurement
   contract; `gate/results/` holds the raw run outputs (`SUMMARY.md`, `RESULT.txt`, perf
   reports).
-- Key dirs: `gate/internal/uring` (the hand-rolled ring), `gate/internal/rawsock` (no-net
-  sockets), `gate/cmd/relay-uring` (the SUT), `gate/cmd/relay-netpoll` (the baseline),
-  `gate/harness/` (gate.sh / flood.sh / hold.sh / DEPLOY-LOADGEN.md).
+- Key dirs: `flashrelay/` (the importable library — API + per-core engine), `examples/echo-relay`
+  (minimal embedding), `internal/uring` (the hand-rolled ring: accept/recv/send/close/timeout/splice),
+  `internal/rawsock` (no-net sockets, IPv4+IPv6), `gate/cmd/relay-uring` (the benchmark SUT),
+  `gate/cmd/relay-netpoll` (the baseline), `gate/harness/` (gate.sh / flood.sh / hold.sh /
+  DEPLOY-LOADGEN.md).
 
 **Bottom line:** the mechanism is real and measured — epoll eliminated, ~1.4–2× less CPU/conn,
 ~2× less RSS/conn, and it survives a connect-flood. The incident's biggest single effect (the
