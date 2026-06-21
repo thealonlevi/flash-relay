@@ -209,18 +209,50 @@ with off-ring blocking dial, bidirectional relay with **partial-send + correct h
 byte counters** (`Stat()`), and **IPv6 + bind-specific-IP**. See `examples/echo-relay`.
 
 **Remaining performance/research tail (do as measured follow-ups):** registered/direct
-descriptors at 100k+ (fd-table sizing — each conn holds 2 fds; the highest-value remaining
-CPU optimization), full **B4 splice** integration in the relay path (the zero-copy
-`socket→pipe→socket` primitive is built + validated, `uring.PrepSplice`; wiring it into the
-duplex loop with the fd-count tradeoff is what's left), the multi-ring **kernel
-lock-contention** investigation (~7.6% at scale), and the rest of the B3–B9 suite
-(throughput/Gbps, NUMA scaling, tail-latency-vs-load, reuseport fairness). None of these block
-a functional integration; they're hardening + tuning, best scored on your hardware with the
-gate harness + optimizer rig.
+descriptors at 100k+ (fd-table sizing — each conn holds 2 fds; **the highest-value untried CPU
+optimization**), the multi-ring **kernel lock-contention** investigation (~7.6% at scale), and
+the rest of the B3–B9 suite (NUMA scaling, tail-latency-vs-load, reuseport fairness). The **B4
+splice** path is now built, fixed, and measured — see §7 for the (important, non-obvious)
+result. None of these block a functional integration; they're hardening + tuning, best scored on
+your hardware with the gate harness + optimizer rig.
 
 ---
 
-## 6. Where the code and evidence live
+## 6. Optimizer campaign findings (auto-tuning the relay, 2026-06-21)
+
+We ran the autonomous optimizer (a `claude -p` hill-climb that mutates the relay hot path and
+keeps only measured wins) in **Pareto mode** over two objectives at once — CPU-per-connection
+*and* bytes-per-CPU — with a no-regress promotion gate (plus flood-survival + RSS-leak gates) so
+neither objective is improved at the other's expense. On this single-box **loopback** gate:
+
+1. **One real CPU win, banked in the library — coalesced hook wakeups.** The off-ring decision
+   hook signalled the ring with one `eventfd` `write(2)` per connection; coalescing those (write
+   only when no wake is already outstanding) removes ~a syscall per connection → **+2.1%
+   instr/conn**, gate-cleared. It's in `flashrelay/worker.go`.
+
+2. **The relay engine is already near its editable CPU floor.** instr/conn is dominated by *your
+   decision hook* (the auth CPU + the real upstream dial), not the relay machinery — so further
+   engine micro-optimizations move it ≪ the hook cost. **Practical implication for riptide:**
+   relay CPU is dominated by auth + dial; to cut CPU, optimize *those*, not the relay loop. The
+   loop is already lean.
+
+3. **Splice (zero-copy) is NOT a win on loopback — the important caveat.** We built and fixed a
+   correct, deadlock-free splice relay (`socket→pipe→socket`, both fill/drain splices kept in
+   flight). Measured cleanly (persistent stream), **splice == recv/send on loopback: ~0.82
+   bytes/instruction and ~1.1 GB/s for both.** The zero-copy saving is offset by the
+   double-splice + pipe overhead when the data is already in RAM. **Splice's real benefit is
+   bandwidth/copy-bound — on a real NIC moving real traffic it avoids copying network buffers,
+   which a loopback CPU-bound test fundamentally cannot exhibit.** Keep splice as an option to
+   validate on *your* NICs (`relay-uring -splice`); don't expect a CPU win from it in a
+   loopback/CPU-bound regime. (An earlier measurement suggested splice +15%/+83% — that was a
+   connection-churn artifact, since corrected; the clean persistent-stream number is the real one.)
+
+**Measurement lesson worth carrying:** don't conflate connection-churn cost (accept/teardown)
+with data-plane cost (bytes moved). Measure throughput with persistent streams and churn with a
+churn workload — mixing them flatters whichever path has the cheaper teardown. This is the same
+class of "the benchmark flattered itself" trap the anti-fooling rules (§intro) exist to catch.
+
+## 7. Where the code and evidence live
 
 - Repo: `github.com/thealonlevi/flash-relay`, branch **`main`** (library + fixed relay + all
   harnesses + results). `RELAY_PLAN.md` is the full plan; `gate/DESIGN.md` is the measurement
