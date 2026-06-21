@@ -35,7 +35,13 @@ func main() {
 	relay := flag.String("relay", "", "default relay target <ip>:<port> (overridable per request)")
 	reqLen := flag.Int("reqlen", proto.DefaultReqLen, "default request bytes")
 	replyLen := flag.Int("replylen", proto.DefaultReplyLen, "default reply bytes")
+	srcSpec := flag.String("srcips", "auto", `source IPs to spread the storm across: "auto" (all global IPs on this box), "" (kernel default), or a csv list; overridable per request via ?srcips=`)
 	flag.Parse()
+
+	srcIPs, err := storm.ResolveSrcIPs(*srcSpec)
+	if err != nil {
+		log.Fatalf("srcips: %v", err)
+	}
 
 	if *sinkAddr != "" {
 		go func() { log.Fatalf("sink: %v", sinksrv.ListenAndServe(*sinkAddr, *reqLen, *replyLen, "")) }()
@@ -46,6 +52,12 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
+	// /srcips lets box 1 learn the storm's source IPs so it can open its relay
+	// port to all of them (the storm spreads across every IP here, not just B2).
+	mux.HandleFunc("/srcips", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(srcIPs)
+	})
 	mux.HandleFunc("/run", func(w http.ResponseWriter, r *http.Request) {
 		if !busy.TryLock() {
 			http.Error(w, "busy: a storm is already running", http.StatusConflict)
@@ -53,6 +65,15 @@ func main() {
 		}
 		defer busy.Unlock()
 		q := r.URL.Query()
+		sips := srcIPs
+		if v := qstr(q, "srcips", ""); v != "" {
+			got, err := storm.ResolveSrcIPs(v)
+			if err != nil {
+				http.Error(w, "bad srcips: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			sips = got
+		}
 		cfg := storm.Config{
 			Relay:    qstr(q, "relay", *relay),
 			ReqLen:   qint(q, "reqlen", *reqLen),
@@ -60,12 +81,13 @@ func main() {
 			InFlight: qint(q, "inflight", 512),
 			Warmup:   qdur(q, "warmup", 5*time.Second),
 			Duration: qdur(q, "duration", 90*time.Second),
+			SrcIPs:   sips,
 		}
 		if cfg.Relay == "" {
 			http.Error(w, "no relay target: set -relay on the daemon or ?relay=ip:port", http.StatusBadRequest)
 			return
 		}
-		log.Printf("/run relay=%s inflight=%d warmup=%v duration=%v", cfg.Relay, cfg.InFlight, cfg.Warmup, cfg.Duration)
+		log.Printf("/run relay=%s inflight=%d warmup=%v duration=%v srcips=%d", cfg.Relay, cfg.InFlight, cfg.Warmup, cfg.Duration, len(cfg.SrcIPs))
 		res := storm.Run(cfg)
 		log.Printf("/run done: completed=%d conn/s=%.0f p99=%.0fus auditFail=%d",
 			res.Completed, res.ConnPerSec, res.P99us, res.AuditFail)
@@ -75,7 +97,7 @@ func main() {
 		_ = enc.Encode(res)
 	})
 
-	log.Printf("loadgend control on %s (sink=%q default-relay=%q)", *control, *sinkAddr, *relay)
+	log.Printf("loadgend control on %s (sink=%q default-relay=%q srcips=%d:%v)", *control, *sinkAddr, *relay, len(srcIPs), srcIPs)
 	log.Fatal(http.ListenAndServe(*control, mux))
 }
 
