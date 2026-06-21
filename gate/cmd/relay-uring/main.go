@@ -113,17 +113,24 @@ type hookResult struct {
 }
 
 type bridge struct {
-	mu    sync.Mutex
-	ready []hookResult
-	efd   int
+	mu       sync.Mutex
+	ready    []hookResult
+	efd      int
+	notified atomic.Int32 // 1 = an eventfd wake is already outstanding (coalesces writes)
 }
 
 func (b *bridge) push(r hookResult) {
 	b.mu.Lock()
 	b.ready = append(b.ready, r)
 	b.mu.Unlock()
-	var one uint64 = 1
-	syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:])
+	// Coalesce wakeups (optimizer champion, iter 2): only write the eventfd if no
+	// wake is already pending. The outstanding CQE drains everything appended since
+	// (consumer clears the flag before draining, so a later push re-arms — no lost
+	// wakeup), collapsing one write(2) per conn into one per ring drain under churn.
+	if b.notified.Swap(1) == 0 {
+		var one uint64 = 1
+		syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:])
+	}
 }
 
 func (b *bridge) drain() []hookResult {
@@ -331,6 +338,9 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 
 			case opEventfd:
 				postEventfd()
+				// Clear the wake flag BEFORE draining: any push after this re-arms the
+				// eventfd, so no completion is lost.
+				br.notified.Store(0)
 				for _, r := range br.drain() {
 					cc := conns[r.id]
 					if cc == nil {
