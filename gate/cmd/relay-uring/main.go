@@ -134,6 +134,7 @@ type relayCfg struct {
 	hookWorkers       int
 	duplex            bool
 	bufSize, maxConns int
+	acceptBatch       int
 }
 
 func main() {
@@ -154,6 +155,7 @@ func main() {
 	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3)")
 	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
 	maxConns := flag.Int("maxconns", 50000, "accept backpressure cap PER WORKER: shed above this many live")
+	acceptBatch := flag.Int("acceptbatch", 64, "accepts kept in flight per worker (bounded parallelism: throughput without flooding the CQ)")
 	workers := flag.Int("workers", 1, "number of shared-nothing per-core ring workers (SO_REUSEPORT)")
 	startCore := flag.Int("startcore", -1, "pin worker i to core startcore+i (-1 = no pinning)")
 	flag.Parse()
@@ -166,7 +168,7 @@ func main() {
 		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort,
 		reqLen: *reqLen, replyLen: *replyLen, authCPU: *authCPU, delay: delay,
 		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex,
-		bufSize: *bufSize, maxConns: *maxConns,
+		bufSize: *bufSize, maxConns: *maxConns, acceptBatch: *acceptBatch,
 	}
 
 	if *statsFile != "" {
@@ -256,10 +258,10 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		}
 	}
 
-	acceptArmed := false
+	acceptInflight := 0 // bounded-batch accept: keep up to c.acceptBatch in flight
 	postAccept := func() {
 		post(func(s *uring.SQE) { uring.PrepAccept(s, ln.FD, ud(0, opAccept)) })
-		acceptArmed = true
+		acceptInflight++
 	}
 	postEventfd := func() {
 		post(func(s *uring.SQE) { uring.PrepRead(s, br.efd, efdBuf, ud(0, opEventfd)) })
@@ -287,7 +289,7 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 			res := cqe.Res
 			switch op {
 			case opAccept:
-				acceptArmed = false // single-shot consumed; main loop re-arms under cap
+				acceptInflight-- // this accept SQE consumed; main loop tops the batch back up
 				if res < 0 {
 					errs++
 					break
@@ -445,7 +447,10 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		}
 		ring.CQAdvance(n)
 
-		if !acceptArmed && len(conns) < c.maxConns {
+		// Top the accept batch back up: keep up to acceptBatch accepts in flight,
+		// bounded so live+inflight never exceeds the cap (backpressure) and the
+		// batch stays tiny vs the CQ (flood-safe — no CQ overflow).
+		for acceptInflight < c.acceptBatch && len(conns)+acceptInflight < c.maxConns {
 			postAccept()
 		}
 
