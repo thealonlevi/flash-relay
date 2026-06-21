@@ -324,6 +324,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				cc.initSent += int(res)
+				s.cnt.bytesC2U.Add(uint64(res)) // initial request is client->upstream traffic
 				if cc.initSent < cc.reqN {
 					post(func(sq *uring.SQE) {
 						uring.PrepSend(sq, cc.upstreamFD, cc.reqBuf[cc.initSent:cc.reqN], 0, ud(cc.id, opSendUp))

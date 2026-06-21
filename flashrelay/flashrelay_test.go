@@ -141,6 +141,14 @@ func TestRelayEcho(t *testing.T) {
 	}
 	st := srv.Stat()
 	t.Logf("stats: accepted=%d completed=%d bytesC2U=%d bytesU2C=%d", st.Accepted, st.Completed, st.BytesC2U, st.BytesU2C)
+	// Each conn pushes 64 init + 3000 payload = 3064 bytes up; the echo upstream
+	// returns the same down. The counters must account for both directions in
+	// full, INCLUDING the forwarded initial request (regression: that used to be
+	// omitted from BytesC2U).
+	const perConn = 64 + 3000
+	if want := uint64(N * perConn); st.BytesC2U != want || st.BytesU2C != want {
+		t.Fatalf("byte counters: C2U=%d U2C=%d, want %d each", st.BytesC2U, st.BytesU2C, want)
+	}
 
 	srv.Stop()
 	select {

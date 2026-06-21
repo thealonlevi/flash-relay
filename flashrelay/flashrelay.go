@@ -165,6 +165,15 @@ func (s *Server) Run() error {
 // then exit. Run returns once drained. Async-signal-safe.
 func (s *Server) Stop() { s.stop.Store(true) }
 
+// Dial performs a BLOCKING, raw-syscall TCP connect to host:port (IPv4 or IPv6)
+// and returns the connected fd for a Hook to return as Decision.UpstreamFD.
+// Unlike net.Dial it never registers the fd with the Go netpoller — which is the
+// whole point: the relayed upstream fd must stay off the poller. The blocking
+// connect parks the calling (off-ring hook) goroutine's thread via the Go
+// scheduler; it does not touch the ring. Callers that need a non-blocking or
+// custom dial may produce the fd themselves (any connected SOCK_STREAM fd works).
+func Dial(host string, port int) (int, error) { return rawsock.Dial(host, port) }
+
 // Stat returns a snapshot of the engine's counters.
 func (s *Server) Stat() Stats {
 	return Stats{
