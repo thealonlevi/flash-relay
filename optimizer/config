@@ -33,7 +33,7 @@ MEASURE_CONNS=512   # FIXED in-flight for the scored measurement (low instr/conn
 AUTHCPU=5us         # realistic decision hook cost (LOCKED contract; see internal/hook)
 WARMUP=2
 MEASURE=5
-N=5                 # reps per scored config; score = mean(1e9/instr_per_conn). budget is not a constraint -> more reps = less noise
+N=8                 # reps per scored config; more reps = tighter noise band (raised 5->8 so genuine ~1-2% wins clear the promote threshold instead of drowning in measurement noise)
 SETTLE=1
 
 # --- B4 bulk-throughput workload (for OBJECTIVE=bytes_per_cpu) ---------------
@@ -57,9 +57,9 @@ HOLD_CONNS=20000        # held-connection count for the RSS-slope gate
 RSS_SLOPE_CEIL=16384    # max bytes/conn of relay RSS (LEAK guard, not a tight buffer cap:
                         # legit cost is ~2x bufsize + overhead, ~6 KB/conn at 40k+ scale;
                         # 16 KB catches a real per-conn leak with margin)
-REGRESS_TOL=0.03        # neither objective may drop more than this (~the measured
-                        # N-rep noise floor) — keeps "no regression" tight without
-                        # false-rejecting noise-neutral mutations
+REGRESS_TOL=0.02        # neither objective may drop more than this (matched to EPSILON
+                        # so a promote can never give back more on one axis than it
+                        # gains on the other; safe at N=8's tighter noise band)
 
 # --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------
 # The ring (internal/uring) is shared by the library + the SUT, so a ring win
@@ -67,7 +67,7 @@ REGRESS_TOL=0.03        # neither objective may drop more than this (~the measur
 ALLOWED_PATHS="internal/uring gate/cmd/relay-uring"
 
 # --- optimizer loop knobs ---------------------------------------------------
-EPSILON=0.03        # promote only if >3% better than champion (above noise)
+EPSILON=0.02        # promote only if >2% better than champion (lowered 3->2 with N=8 noise reduction, so the hook-dominated workload's genuine small wins can promote)
 PATIENCE=50         # configs without improvement => plateau => stop
 K=15                # re-check baseline (control drift) every K iterations
 OPT_MODEL="opus"    # budget is not a constraint -> Opus every iteration (quality over cost)
