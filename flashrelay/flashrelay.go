@@ -174,13 +174,25 @@ func (s *Server) Stop() { s.stop.Store(true) }
 // custom dial may produce the fd themselves (any connected SOCK_STREAM fd works).
 func Dial(host string, port int) (int, error) { return rawsock.Dial(host, port) }
 
-// DialFingerprint is Dial but tags the upstream socket with SO_MARK = profile, so
-// the fingerprint tc-egress eBPF (see fingerprint/) rewrites this connection's SYN
-// to the matching OS TCP/IP fingerprint (e.g. 1 = Windows). A Hook can call this
-// to give each upstream the fingerprint that matches the client it's serving.
-// profile 0 behaves exactly like Dial. Requires the eBPF attached + CAP_NET_ADMIN.
+// Fingerprint profile ids (the SO_MARK the tc-egress eBPF switches on).
+const (
+	FPWindows = 1 // eBPF: TTL 128 + opts mss,nop,ws,sok,ts ; wscale 8
+	FPMacOS   = 2 // eBPF: TTL 64 + opts mss,nop,ws,nop,nop,ts,sok,eol ; wscale 6
+	FPAndroid = 3 // no eBPF (option layout == Linux) ; wscale 8
+)
+
+// fpRcvBuf sets SO_RCVBUF per profile so the kernel emits the profile's window
+// scale (needs net.core.rmem_max raised, e.g. 16 MiB): 2 MiB->wscale 6, 8 MiB->8.
+var fpRcvBuf = map[int]int{FPWindows: 8 << 20, FPMacOS: 2 << 20, FPAndroid: 8 << 20}
+
+// DialFingerprint dials upstream and shapes the SYN to a chosen OS TCP/IP
+// fingerprint: it tags the socket with SO_MARK=profile (the tc-egress eBPF in
+// fingerprint/ then rewrites TTL + TCP option layout) and sets SO_RCVBUF so the
+// kernel emits the profile's window scale. A Hook calls this to give each upstream
+// the fingerprint matching the client it serves. profile 0 == plain Dial. Requires
+// the eBPF attached + CAP_NET_ADMIN; full wscale fidelity needs rmem_max raised.
 func DialFingerprint(host string, port, profile int) (int, error) {
-	return rawsock.DialMark(host, port, profile)
+	return rawsock.DialFP(host, port, profile, fpRcvBuf[profile])
 }
 
 // Stat returns a snapshot of the engine's counters.

@@ -75,16 +75,23 @@ func (l *Listener) Close() error { return syscall.Close(l.FD) }
 // connected fd. The blocking connect parks the calling goroutine's OS thread via
 // the Go scheduler — it does NOT touch the netpoller. This is how riptide dials
 // upstream (and how the gate's decision hook dials the sink). See DESIGN.md §3.2.
-func Dial(ip string, port int) (int, error) { return DialMark(ip, port, 0) }
+func Dial(ip string, port int) (int, error)           { return DialFP(ip, port, 0, 0) }
+func DialMark(ip string, port, mark int) (int, error) { return DialFP(ip, port, mark, 0) }
 
 // soMark is SO_SOCKET-level SO_MARK (not exported by syscall on all arches).
 const soMark = 36
 
-// DialMark is Dial, but if mark > 0 it sets SO_MARK on the socket before connect.
-// The mark rides every packet from this connection as skb->mark, which the
-// fingerprint tc-egress eBPF reads to pick a per-connection TCP/IP fingerprint
-// (see fingerprint/). Setting SO_MARK needs CAP_NET_ADMIN. mark 0 = no mark.
-func DialMark(ip string, port, mark int) (int, error) {
+// DialFP is Dial plus the two knobs the TCP-fingerprint feature needs, set before
+// connect so they shape the SYN (see fingerprint/):
+//   - mark>0   : SO_MARK — rides the connection as skb->mark; the tc-egress eBPF
+//     reads it to pick the OS option-layout + TTL profile.
+//   - rcvbuf>0 : SO_RCVBUF — the kernel derives the SYN's window scale (and initial
+//     window) from it, so this sets the *functional* wscale/window that
+//     can't be forged in-packet. Hitting high wscales needs
+//     net.core.rmem_max raised (e.g. 16 MiB). 0 = leave default.
+//
+// Both need CAP_NET_ADMIN (mark). 0/0 == plain Dial.
+func DialFP(ip string, port, mark, rcvbuf int) (int, error) {
 	sa, family, err := resolve(ip, port)
 	if err != nil {
 		return -1, err
@@ -98,6 +105,10 @@ func DialMark(ip string, port, mark int) (int, error) {
 			syscall.Close(fd)
 			return -1, fmt.Errorf("SO_MARK: %w", err)
 		}
+	}
+	if rcvbuf > 0 {
+		// best-effort: clamped to net.core.rmem_max; a too-low rmem_max caps wscale.
+		_ = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, rcvbuf)
 	}
 	if err := syscall.Connect(fd, sa); err != nil {
 		syscall.Close(fd)
