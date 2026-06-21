@@ -179,3 +179,41 @@ func TestRelayReject(t *testing.T) {
 	srv.Stop()
 	<-done
 }
+
+// TestIdleTimeout verifies the engine closes connections idle past IdleTimeout.
+func TestIdleTimeout(t *testing.T) {
+	upHost, upPort, upStop := echoUpstream(t)
+	defer upStop()
+	port := freePort(t)
+	hook := func(req []byte, peer netip.AddrPort) flashrelay.Decision {
+		fd, err := rawsock.Dial(upHost, upPort)
+		if err != nil {
+			return flashrelay.Decision{Reject: true}
+		}
+		return flashrelay.Decision{UpstreamFD: fd}
+	}
+	srv, _ := flashrelay.New(flashrelay.Config{
+		Addr: "127.0.0.1", Port: port, Workers: 1, InitialReqLen: 4, IdleTimeout: 300 * time.Millisecond,
+	}, hook)
+	done := make(chan error, 1)
+	go func() { done <- srv.Run() }()
+	waitListen(t, port)
+	defer func() { srv.Stop(); <-done }()
+
+	c, err := net.DialTimeout("tcp", "127.0.0.1:"+strconv.Itoa(port), 3*time.Second)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	c.Write([]byte("ping"))         // establish (relay forwards; upstream echoes "ping")
+	io.ReadFull(c, make([]byte, 4)) // read the echo back -> relay is established + now idle
+	// now idle; the idle sweep (~1s cadence) should close it within ~2s
+	c.SetReadDeadline(time.Now().Add(3 * time.Second))
+	n, _ := c.Read(make([]byte, 16)) // should return 0 (EOF) when the engine closes us
+	if n != 0 {
+		t.Fatalf("expected idle close (EOF), got %d bytes", n)
+	}
+	if ic := srv.Stat().IdleClosed; ic < 1 {
+		t.Fatalf("IdleClosed = %d, want >= 1", ic)
+	}
+}
