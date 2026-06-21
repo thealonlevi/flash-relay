@@ -5,60 +5,93 @@ fingerprint (TTL + TCP option order/set) instead of Linux's, so an upstream/
 destination fingerprinting the relay (p0f-style) sees macOS / Windows 10+ /
 Android rather than the egress box's real Linux stack.
 
-**Scope:** this controls only the **TCP/IP layer** (the SYN the relay sends when
-it dials upstream). It does **not** touch TLS (JA3/JA4) — the client's ClientHello
-is forwarded untouched, so the destination sees the *client's* TLS fingerprint.
-For a believable spoof the TCP profile should match whatever OS the client's
-TLS/HTTP fingerprint claims (select the profile in the relay's per-connection hook).
+**Scope:** controls only the **TCP/IP layer** (the SYN the relay sends when it
+dials upstream). It does **not** touch TLS (JA3/JA4) — the client's ClientHello is
+forwarded untouched, so the destination sees the *client's* TLS fingerprint. For a
+believable spoof, pick the TCP profile to match the OS the client's TLS/HTTP
+fingerprint claims (select it per-connection in the relay's hook).
 
 ## How it works
 
 A tc-egress eBPF program (`bpf/syn_rewrite.bpf.c`) runs on the egress interface.
-It touches **only pure SYN packets** — every other packet pays just a cheap
-"is-this-a-SYN?" branch — and on a SYN it rewrites the IP TTL and reorders the
-TCP options to the target profile, fixing the IP and TCP checksums.
+The relay sets **`SO_MARK`** on each upstream socket (the chosen profile id); the
+SYN carries that as `skb->mark`, and the eBPF switches on it. **Unmarked traffic
+returns on the first instruction** — only the relay's deliberately-marked outbound
+connections are touched. On a marked SYN it rewrites the IP TTL and the TCP option
+layout to the profile and fixes the checksums.
+
+```
+relay (hook) --SO_MARK=1--> upstream socket --> SYN(skb->mark=1) --> eBPF: Windows layout
+```
+
+Wiring: `rawsock.DialMark(ip,port,mark)`, `hook.Config.Mark` / SUT `-fpmark`,
+`flashrelay.DialFingerprint(host,port,profile)` for the library hook.
 
 ```sh
-./build.sh                                   # clang -> bpf/syn_rewrite.bpf.o
+./build.sh                                            # clang -> bpf/syn_rewrite.bpf.o
 tc qdisc add dev eth0 clsact
 tc filter add dev eth0 egress bpf da obj bpf/syn_rewrite.bpf.o sec tc   # attach
-tc qdisc del dev eth0 clsact                 # detach
+tc qdisc del dev eth0 clsact                          # detach
 ```
 
 Needs `CAP_NET_ADMIN` + the eBPF/tc toolchain (`clang`, `libbpf-dev`, `iproute2`).
 
-## Status
+## Profiles (canonical p0f.fp signatures)
 
-**Prototype + benchmark (loopback).** Current profile: TTL→128 and reorder the
-Linux SYN options `[MSS, SACK_OK, TS, NOP, WScale]` → `[MSS, NOP, WScale, SACK_OK,
-TS]` (same 20-byte length → in-place rewrite, no packet resize). Validated:
-handshake + data survive the rewrite; IP checksum correct; TTL + option order
-rewritten as intended.
+| Profile | TTL | TCP options | window,wscale | eBPF work |
+|---|---|---|---|---|
+| Linux (relay's real stack) | 64 | `mss,sok,ts,nop,ws` (20B) | *,7 | — |
+| **Windows 7/8/10** (mark 1) | 128 | `mss,nop,ws,sok,ts` (20B) | 8192,2 | TTL + in-place reorder ✅ |
+| **macOS 10.x** (mark 2) | 64 | `mss,nop,ws,nop,nop,ts,sok,eol+1` (24B) | 65535,* | reorder + **grow +4** (TODO) |
+| **Android** (mark 3) | 64 | `mss,sok,ts,nop,ws` (**same as Linux**) | *,3 | **none** — sockopt only |
 
-### Benchmark — eBPF off vs on (single box, loopback, 1-core relay)
+**Key:** TTL + option *order* are cosmetic → forge freely in eBPF. **window +
+wscale are functional** — forging them in the SYN alone desyncs flow control, so
+they must come from the kernel via `setsockopt(SO_RCVBUF)` on the upstream socket
+(the kernel derives wscale + initial window from the receive buffer). Android needs
+*no* eBPF (its option layout == Linux); it's purely a window/wscale (sockopt) job.
 
-| Aspect | OFF | ON | Impact |
-|---|---|---|---|
-| Throughput, bytes/instruction | 0.772 | 0.781 | ~0% (within noise) |
-| Throughput, MB/s | 1080 | 1066 | −1.3% (within noise) |
-| Connection churn, instr/conn | 143,746 | 148,964 | **+3.6%** |
+## Status & benchmark
 
-**Takeaway:** the per-data-packet classifier is negligible (bulk throughput
-unaffected); the cost is per-connection (~+3.6% instr/conn), almost entirely the
-single SYN rewrite (~5k instructions, helper-heavy). For a data-plane-dominated
-proxy the overall CPU impact is small — it only lands on the accept/dial path.
+**Working + validated (loopback):** Windows profile — `SO_MARK=1` connection emits
+TTL 128 + `mss,nop,ws,sok,ts`, IP checksum correct, handshake + data survive;
+unmarked connections pass through as untouched Linux. Per-connection selection via
+`SO_MARK` works end-to-end through the relay.
 
-## TODO (real-profile fidelity + optimization)
+**Cost (eBPF off vs on, 1-core loopback; three program variants measured —
+rewrite-all, direct-packet-access, mark-based — all agree):**
 
-- **Real OS profiles** with their exact option *sets* (macOS/Windows omit or add
-  options vs Linux → different total length) — needs `bpf_skb_change_tail` to
-  grow/shrink the SYN + adjust TCP data-offset / IP total-length / checksums.
-- **Per-connection profile selection** via an eBPF map keyed on `SO_MARK`, set by
-  the relay's hook (so each client gets a TCP profile matching its TLS/HTTP claim).
-- **Cut the ~5k instr/SYN**: replace the `load_bytes`/`store_bytes` helpers with
-  direct packet access (bounds-checked), and minimize checksum-helper calls.
-- **Real-NIC validation**: confirm TCP checksum under real TX offload (loopback
-  uses CHECKSUM offload / doesn't validate TCP csum), and diff the emitted SYN
-  against real macOS/Windows/Android captures with p0f for fidelity.
-- **Window scale / MSS consistency**: only forge values the kernel actually uses
-  (via `setsockopt`) so the SYN advertisement matches the connection's behavior.
+| Aspect | Impact |
+|---|---|
+| Throughput (bytes/instr, MB/s) | **~0%** (within noise) |
+| Connection churn (instr/conn) | **+3.6–3.9%** |
+
+**The cost is the per-packet tc-egress *dispatch*** (the hook is invoked on every
+egress packet), **not** the program logic or the rewrite — confirmed because
+direct-packet-access and mark-gating (both of which slash the program's work) did
+*not* move the number. Throughput is unaffected because few large packets amortize
+the dispatch; churn shows it because it's more packets per unit work. It's
+intrinsic to tc-egress. Only levers: a `flower` SYN-prefilter (marginal) or
+`sock_ops` (connect-time only — but can't reorder options).
+
+## Remaining work (precise approaches)
+
+1. **macOS resize (mark 2).** Snapshot the option fields, `bpf_skb_change_tail(skb,
+   len+4)`, re-fetch pointers, write the 24-byte macOS layout, set TCP data-offset
+   10→11, IP total-length 60→64, recompute IP checksum. **TCP checksum** has three
+   components: option bytes (`csum_diff` old20 vs new24), the data-offset byte, and
+   the **pseudo-header length** 40→44 (`bpf_l4_csum_replace(..., BPF_F_PSEUDO_HDR)`).
+   *Deferred:* the TCP checksum can't be validated on loopback (offload doesn't
+   verify it) — needs a real-NIC capture, so it's a deploy-time task, not an
+   overnight one.
+2. **window/wscale fidelity (all profiles, for a full p0f OS-*label* match).** Set
+   `SO_RCVBUF` on the upstream socket so the kernel emits the target wscale (and
+   initial window). **Loopback can't reach it**: loopback MSS is 65495, so the
+   advertised window can't be the ~8192 real OSes use — a full p0f OS-label match
+   needs a real NIC (MSS ~1460). On loopback we can validate the *option layout +
+   TTL* (the structural signal), which we do.
+3. **Real-NIC validation.** Confirm TCP checksums under real TX offload and diff the
+   emitted SYN against real macOS/Windows/Android captures (and p0f's OS label) on
+   the egress box.
+4. **Cut the per-packet dispatch** (if churn CPU matters): `flower` filter matching
+   SYN-only so the eBPF action runs only on SYNs.
