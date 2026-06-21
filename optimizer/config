@@ -36,8 +36,8 @@ SETTLE=1
 # --- B4 bulk-throughput workload (for OBJECTIVE=bytes_per_cpu) ---------------
 TPORT=18400         # relay listen for the bulk-throughput arm
 TEPORT=18500        # echo sink for the bulk-throughput arm
-BULK_CONNS=64       # concurrent long-lived bulk transfers
-BULK_BYTES=4194304  # bytes pushed per conn per direction (4 MiB)
+BULK_CONNS=64       # concurrent long-lived full-duplex bulk transfers
+BULK_BYTES=262144   # write/read chunk bytes (256 KiB — amortizes syscalls; 64*256K*2 ~ 32 MB)
 
 # --- anti-cheat gate (any failure => score 0) -------------------------------
 DROP_CEILING=0.001  # connection failure rate ceiling

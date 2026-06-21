@@ -61,9 +61,81 @@ if ! CGO_ENABLED=0 go build -o bin/relay-uring ./gate/cmd/relay-uring 2>/tmp/opt
 fi
 CGO_ENABLED=0 go build -o bin/sink ./gate/cmd/sink 2>/dev/null
 CGO_ENABLED=0 go build -o bin/loadgen ./gate/cmd/loadgen 2>/dev/null
+CGO_ENABLED=0 go build -o bin/bulkgen ./gate/cmd/bulkgen 2>/dev/null
 BIN=$(pwd)/bin
 RSTAT=/tmp/opt-relay.stats; SSTAT=/tmp/opt-sink.stats; rm -f "$RSTAT" "$SSTAT"
 
+# ===========================================================================
+# OBJECTIVE = bytes_per_cpu : B4 bulk-throughput arm. SCORE = verified relayed
+# bytes per relay instruction (x1e6). Stresses the data plane (recv/send/splice).
+# ===========================================================================
+if [ "$OBJECTIVE" = "bytes_per_cpu" ]; then
+  ESTAT=/tmp/opt-echo.stats; rm -f "$ESTAT"
+  taskset -c "$SINK_CPU" "$BIN/sink" -addr 127.0.0.1:$TEPORT -echo -statsfile "$ESTAT" >/tmp/opt-echo.log 2>&1 & SINK_PID=$!
+  sleep 0.4
+  taskset -c "$SUT_CPU" env GOMAXPROCS=1 "$BIN/relay-uring" -addr 127.0.0.1 -port $TPORT \
+    -sinkip 127.0.0.1 -sinkport $TEPORT -duplex -bufsize 65536 >/tmp/opt-relay.log 2>&1 & RELAY_PID=$!
+  sleep 1
+  kill -0 "$RELAY_PID" 2>/dev/null || { log "relay didn't start"; emit '{"score":0,"reason":"start_fail"}'; }
+  # smoke
+  "$BIN/bulkgen" -relay 127.0.0.1:$TPORT -conns 4 -chunk 65536 -warmup 1s -duration 1s >/tmp/opt-bsmoke.json 2>/dev/null
+  sb=$(python3 -c "import json;print(json.load(open('/tmp/opt-bsmoke.json'))['bytes'])" 2>/dev/null || echo 0)
+  [ "${sb:-0}" -ge 1 ] || { log "bulk smoke failed (bytes=$sb)"; emit '{"score":0,"reason":"smoke_fail"}'; }
+
+  rdecho(){ grep -o '[0-9]\+' "$1" 2>/dev/null | head -1 || echo 0; }
+  declare -a BPC=() BPS=()
+  GATE_OK=1; REASON="ok"
+  for rep in $(seq 1 "$N"); do
+    taskset -c "$LG_CPUS" "$BIN/bulkgen" -relay 127.0.0.1:$TPORT -conns $BULK_CONNS -chunk $BULK_BYTES \
+      -warmup ${WARMUP}s -duration ${MEASURE}s >/tmp/opt-bulk.$rep.json 2>/dev/null &
+    BG=$!
+    sleep "$WARMUP"
+    e0=$(rdecho "$ESTAT")   # sample the sink counter ALIGNED to the measure window
+    perf stat -x, -e instructions -p "$RELAY_PID" -- sleep "$MEASURE" 2>/tmp/opt-perf.$rep.csv || true
+    e1=$(rdecho "$ESTAT")   # ...and again at window end (before drain)
+    wait "$BG"
+    instr=$(grep -i instructions /tmp/opt-perf.$rep.csv | head -1 | cut -d, -f1 | tr -d ' ')
+    res=$(INSTR="${instr:-0}" E0=$e0 E1=$e1 TOL="$TWO_FD_TOL" MEASURE="$MEASURE" python3 - "/tmp/opt-bulk.$rep.json" <<'PY'
+import os,sys,json
+d=json.load(open(sys.argv[1]))
+b=int(d["bytes"]); af=int(d["audit_fail"]); errs=int(d["errors"])
+instr=float(os.environ["INSTR"]); echoed=int(os.environ["E1"])-int(os.environ["E0"])
+ok=1; why="ok"
+# echoed = bytes the UPSTREAM sink actually echoed during the (window-aligned)
+# measure period; b = bytes the client verified round-trip. A legit relay forwards
+# every byte to the sink, so echoed >= ~b (skew/250ms-flush jitter only makes
+# echoed bigger). A self-echo cheat (relay never dials upstream) shows echoed ~ 0.
+# So enforce a one-sided LOWER bound: the sink must have carried most of the bytes.
+if b<=0 or instr<=0: ok,why=0,"no_progress"
+elif af>0: ok,why=0,"audit_fail"
+elif errs>0: ok,why=0,"bulk_errors"
+elif echoed < b*0.7: ok,why=0,"two_fd_fail"
+bpc=b/instr if instr>0 else 0
+print(f"{ok} {why} {bpc:.6f} {b/float(os.environ['MEASURE']):.0f}")
+PY
+)
+    read -r ok why bpc bps <<<"$res"
+    log "  rep $rep: bytes/instr=$bpc bytes/s=$bps echoed_delta=$((e1-e0)) gate=$ok ($why)"
+    if [ "$ok" != "1" ]; then GATE_OK=0; REASON="$why"; break; fi
+    BPC+=( "$bpc" ); BPS+=( "$bps" )
+  done
+  kill "$RELAY_PID" "$SINK_PID" 2>/dev/null; RELAY_PID=""; SINK_PID=""; sleep "$SETTLE"
+  if [ "$GATE_OK" != 1 ]; then log "GATE FAIL ($REASON) -> score 0"; emit "{\"score\":0,\"reason\":\"$REASON\"}"; fi
+  python3 - "${BPC[*]}" "${BPS[*]}" <<'PY'
+import sys,json
+bpc=[float(x) for x in sys.argv[1].split()]; bps=[float(x) for x in sys.argv[2].split()]
+mb=sum(bpc)/len(bpc); ms=sum(bps)/len(bps)
+score=mb*1e6  # bytes-per-instruction x1e6 (higher = fewer instructions per byte)
+spread=(max(bpc)-min(bpc))/min(bpc)*100 if len(bpc)>1 and min(bpc)>0 else 0
+print(json.dumps({"score":round(score,1),"bytes_per_instr":round(mb,6),"mb_per_sec":round(ms/1e6,1),
+                  "spread_pct":round(spread,1),"reps":len(bpc),"reason":"ok"}))
+PY
+  exit 0
+fi
+
+# ===========================================================================
+# OBJECTIVE = instr_pc (default) : churn arm. SCORE = 1e9/instr_per_conn.
+# ===========================================================================
 # --- churn arm: sink + relay pinned ----------------------------------------
 taskset -c "$SINK_CPU" "$BIN/sink" -addr 127.0.0.1:$SPORT -reqlen $REQLEN -replylen $REPLYLEN \
   -statsfile "$SSTAT" >/tmp/opt-sink.log 2>&1 & SINK_PID=$!

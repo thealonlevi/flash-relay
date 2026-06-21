@@ -21,7 +21,7 @@ func main() {
 	flag.Parse()
 
 	if *echo {
-		log.Fatal(sinksrv.ListenAndServeEcho(*addr))
+		log.Fatal(sinksrv.ListenAndServeEcho(*addr, *statsFile))
 	}
 	log.Fatal(sinksrv.ListenAndServe(*addr, *reqLen, *replyLen, *statsFile))
 }
