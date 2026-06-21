@@ -89,10 +89,12 @@ type conn struct {
 	closing    bool
 	closesLeft int
 	// duplex relay state (allocated only in -duplex mode)
-	c2uBuf   []byte
-	u2cBuf   []byte
-	bytesC2U uint64
-	bytesU2C uint64
+	c2uBuf, u2cBuf     []byte
+	c2uOff, c2uEnd     int  // pending send window c2uBuf[off:end] (client->upstream), for partial-send retry
+	u2cOff, u2cEnd     int  // pending send window u2cBuf[off:end] (upstream->client)
+	clientReadDone     bool // client half-closed its write (c->u EOF); upstream SHUT_WR propagated
+	upstreamReadDone   bool // upstream half-closed (u->c EOF); client SHUT_WR propagated
+	bytesC2U, bytesU2C uint64
 }
 
 type hookResult struct {
@@ -357,31 +359,73 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 				}
 				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.respBuf, ud(cc.id, opRecvResp)) })
 
-			case opC2URecv:
+			case opC2URecv: // client -> upstream: data from client
 				cc := conns[cid]
 				if cc == nil || cc.closing {
 					break
 				}
-				if res <= 0 {
+				if res < 0 { // error
 					closeConn(cc)
 					break
 				}
-				nb := int(res)
-				cc.bytesC2U += uint64(nb)
-				post(func(s *uring.SQE) { uring.PrepSend(s, cc.upstreamFD, cc.c2uBuf[:nb], 0, ud(cc.id, opC2USend)) })
+				if res == 0 { // client half-closed its write: propagate EOF to upstream
+					syscall.Shutdown(cc.upstreamFD, syscall.SHUT_WR)
+					cc.clientReadDone = true
+					if cc.upstreamReadDone {
+						closeConn(cc) // both directions drained
+					}
+					break
+				}
+				cc.bytesC2U += uint64(res)
+				cc.c2uOff, cc.c2uEnd = 0, int(res)
+				post(func(s *uring.SQE) {
+					uring.PrepSend(s, cc.upstreamFD, cc.c2uBuf[cc.c2uOff:cc.c2uEnd], 0, ud(cc.id, opC2USend))
+				})
 
 			case opC2USend:
 				cc := conns[cid]
 				if cc == nil || cc.closing {
 					break
 				}
+				if res <= 0 { // send error / 0 -> peer gone
+					closeConn(cc)
+					break
+				}
+				cc.c2uOff += int(res)
+				if cc.c2uOff < cc.c2uEnd { // PARTIAL send: forward the remainder
+					post(func(s *uring.SQE) {
+						uring.PrepSend(s, cc.upstreamFD, cc.c2uBuf[cc.c2uOff:cc.c2uEnd], 0, ud(cc.id, opC2USend))
+					})
+					break
+				}
+				if !cc.clientReadDone { // fully forwarded -> read more from client
+					post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.c2uBuf, ud(cc.id, opC2URecv)) })
+				}
+
+			case opU2CRecv: // upstream -> client: data from upstream
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
 				if res < 0 {
 					closeConn(cc)
 					break
 				}
-				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.c2uBuf, ud(cc.id, opC2URecv)) })
+				if res == 0 { // upstream half-closed: propagate EOF to client
+					syscall.Shutdown(cc.clientFD, syscall.SHUT_WR)
+					cc.upstreamReadDone = true
+					if cc.clientReadDone {
+						closeConn(cc)
+					}
+					break
+				}
+				cc.bytesU2C += uint64(res)
+				cc.u2cOff, cc.u2cEnd = 0, int(res)
+				post(func(s *uring.SQE) {
+					uring.PrepSend(s, cc.clientFD, cc.u2cBuf[cc.u2cOff:cc.u2cEnd], 0, ud(cc.id, opU2CSend))
+				})
 
-			case opU2CRecv:
+			case opU2CSend:
 				cc := conns[cid]
 				if cc == nil || cc.closing {
 					break
@@ -390,20 +434,16 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 					closeConn(cc)
 					break
 				}
-				nb := int(res)
-				cc.bytesU2C += uint64(nb)
-				post(func(s *uring.SQE) { uring.PrepSend(s, cc.clientFD, cc.u2cBuf[:nb], 0, ud(cc.id, opU2CSend)) })
-
-			case opU2CSend:
-				cc := conns[cid]
-				if cc == nil || cc.closing {
+				cc.u2cOff += int(res)
+				if cc.u2cOff < cc.u2cEnd { // PARTIAL send: forward the remainder
+					post(func(s *uring.SQE) {
+						uring.PrepSend(s, cc.clientFD, cc.u2cBuf[cc.u2cOff:cc.u2cEnd], 0, ud(cc.id, opU2CSend))
+					})
 					break
 				}
-				if res < 0 {
-					closeConn(cc)
-					break
+				if !cc.upstreamReadDone {
+					post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
 				}
-				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
 
 			case opRecvResp:
 				cc := conns[cid]
