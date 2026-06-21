@@ -35,3 +35,5 @@ gate/results/**/*_perf_*.csv
 
 # optimizer runtime state (champion, logs, history) — not committed
 optimizer/results/
+gate/results/**/*.data
+gate/results/**/*.load.json

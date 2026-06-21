@@ -1,0 +1,10 @@
+  CPU cores consumed: 1.070   conn/s/core: 21,774  (junk=364,402 real=27,534 errs=0 auditfail=0)
+  where the CPU went (self%, normalized to 100% sampled):
+    Go scheduler thrash              2.5%  #
+    GC                               2.7%  #
+    netpoller/epoll                  1.4%  
+    syscall transition              20.4%  ##########
+    io_uring                         0.0%  
+    kernel TCP/net (irreducible)    58.5%  #############################
+    relay's own code                13.7%  ######
+    other                            1.1%  

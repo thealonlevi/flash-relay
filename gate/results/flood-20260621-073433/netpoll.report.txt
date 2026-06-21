@@ -1,0 +1,1602 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 14K of event 'cpu-clock'
+# Event count (approx.): 14686057778
+#
+# Overhead  Command        Shared Object      Symbol                                                                                                                                                                                                          
+# ........  .............  .................  ................................................................................................................................................................................................................
+#
+    11.12%  relay-netpoll  relay-netpoll      [.] internal/runtime/syscall.Syscall6
+            |
+            ---internal/runtime/syscall.Syscall6
+               |          
+               |--5.89%--syscall.Syscall6
+               |          |          
+               |          |--4.71%--syscall.setsockopt
+               |          |          internal/poll.(*FD).SetsockoptInt
+               |          |          |          
+               |          |          |--1.03%--net.setKeepAlive
+               |          |          |          net.(*TCPConn).SetKeepAliveConfig
+               |          |          |          net.newTCPConn
+               |          |          |          |          
+               |          |          |           --1.01%--net.(*TCPListener).accept
+               |          |          |                     net.(*TCPListener).Accept
+               |          |          |                     main.main
+               |          |          |                     runtime.main
+               |          |          |                     runtime.goexit.abi0
+               |          |          |          
+               |          |          |--0.96%--net.setKeepAliveCount
+               |          |          |          net.(*TCPConn).SetKeepAliveConfig
+               |          |          |          net.newTCPConn
+               |          |          |          |          
+               |          |          |           --0.89%--net.(*TCPListener).accept
+               |          |          |                     net.(*TCPListener).Accept
+               |          |          |                     main.main
+               |          |          |                     runtime.main
+               |          |          |                     runtime.goexit.abi0
+               |          |          |          
+               |          |          |--0.94%--net.setNoDelay
+               |          |          |          net.newTCPConn
+               |          |          |          |          
+               |          |          |           --0.87%--net.(*TCPListener).accept
+               |          |          |                     net.(*TCPListener).Accept
+               |          |          |                     main.main
+               |          |          |                     runtime.main
+               |          |          |                     runtime.goexit.abi0
+               |          |          |          
+               |          |          |--0.93%--net.setKeepAliveInterval
+               |          |          |          net.(*TCPConn).SetKeepAliveConfig
+               |          |          |          net.newTCPConn
+               |          |          |          |          
+               |          |          |           --0.83%--net.(*TCPListener).accept
+               |          |          |                     net.(*TCPListener).Accept
+               |          |          |                     main.main
+               |          |          |                     runtime.main
+               |          |          |                     runtime.goexit.abi0
+               |          |          |          
+               |          |           --0.85%--net.setKeepAliveIdle
+               |          |                     net.(*TCPConn).SetKeepAliveConfig
+               |          |                     net.newTCPConn
+               |          |                     |          
+               |          |                      --0.79%--net.(*TCPListener).accept
+               |          |                                net.(*TCPListener).Accept
+               |          |                                main.main
+               |          |                                runtime.main
+               |          |                                runtime.goexit.abi0
+               |          |          
+               |           --0.85%--syscall.accept4
+               |                     syscall.Accept4
+               |                     internal/poll.accept
+               |                     internal/poll.(*FD).Accept
+               |                     net.(*netFD).accept
+               |                     net.(*TCPListener).accept
+               |                     net.(*TCPListener).Accept
+               |                     main.main
+               |                     runtime.main
+               |                     runtime.goexit.abi0
+               |          
+               |--2.23%--syscall.Syscall
+               |          |          
+               |          |--1.17%--syscall.Close
+               |          |          internal/poll.(*FD).destroy
+               |          |          |          
+               |          |           --1.10%--internal/poll.(*FD).decref
+               |          |                     internal/poll.(*FD).Close
+               |          |                     net.(*netFD).Close
+               |          |                     net.(*conn).Close
+               |          |                     |          
+               |          |                      --1.04%--main.main.func3.deferwrap1
+               |          |                                main.main.func3
+               |          |                                main.main.gowrap1
+               |          |                                runtime.goexit.abi0
+               |          |          
+               |           --0.94%--syscall.read
+               |                     internal/poll.(*FD).Read
+               |                     net.(*netFD).Read
+               |                     net.(*conn).Read
+               |                     io.ReadAtLeast
+               |                     main.main.func3
+               |                     main.main.gowrap1
+               |                     runtime.goexit.abi0
+               |          
+               |--1.06%--syscall.RawSyscall
+               |          |          
+               |           --0.91%--syscall.getsockname
+               |                     syscall.Getsockname
+               |                     |          
+               |                      --0.86%--net.(*netFD).accept
+               |                                net.(*TCPListener).accept
+               |                                net.(*TCPListener).Accept
+               |                                main.main
+               |                                runtime.main
+               |                                runtime.goexit.abi0
+               |          
+               |--0.96%--internal/poll.runtime_pollClose
+               |          internal/poll.(*FD).destroy
+               |          |          
+               |           --0.92%--internal/poll.(*FD).decref
+               |                     internal/poll.(*FD).Close
+               |                     net.(*netFD).Close
+               |                     net.(*conn).Close
+               |                     |          
+               |                      --0.86%--main.main.func3.deferwrap1
+               |                                main.main.func3
+               |                                main.main.gowrap1
+               |                                runtime.goexit.abi0
+               |          
+                --0.96%--internal/poll.runtime_pollOpen
+                          internal/poll.(*pollDesc).init
+                          internal/poll.(*FD).Init
+                          |          
+                           --0.89%--net.(*netFD).accept
+                                     net.(*TCPListener).accept
+                                     net.(*TCPListener).Accept
+                                     main.main
+                                     runtime.main
+                                     runtime.goexit.abi0
+
+     8.07%  relay-netpoll  [kernel.kallsyms]  [k] do_syscall_64
+            |
+            ---do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               |          
+                --8.02%--internal/runtime/syscall.Syscall6
+                          |          
+                          |--4.51%--syscall.Syscall6
+                          |          |          
+                          |          |--3.50%--syscall.setsockopt
+                          |          |          internal/poll.(*FD).SetsockoptInt
+                          |          |          |          
+                          |          |          |--0.82%--net.setKeepAliveCount
+                          |          |          |          net.(*TCPConn).SetKeepAliveConfig
+                          |          |          |          net.newTCPConn
+                          |          |          |          |          
+                          |          |          |           --0.76%--net.(*TCPListener).accept
+                          |          |          |                     net.(*TCPListener).Accept
+                          |          |          |                     main.main
+                          |          |          |                     runtime.main
+                          |          |          |                     runtime.goexit.abi0
+                          |          |          |          
+                          |          |          |--0.72%--net.setNoDelay
+                          |          |          |          net.newTCPConn
+                          |          |          |          |          
+                          |          |          |           --0.68%--net.(*TCPListener).accept
+                          |          |          |                     net.(*TCPListener).Accept
+                          |          |          |                     main.main
+                          |          |          |                     runtime.main
+                          |          |          |                     runtime.goexit.abi0
+                          |          |          |          
+                          |          |          |--0.71%--net.setKeepAliveInterval
+                          |          |          |          net.(*TCPConn).SetKeepAliveConfig
+                          |          |          |          net.newTCPConn
+                          |          |          |          |          
+                          |          |          |           --0.65%--net.(*TCPListener).accept
+                          |          |          |                     net.(*TCPListener).Accept
+                          |          |          |                     main.main
+                          |          |          |                     runtime.main
+                          |          |          |                     runtime.goexit.abi0
+                          |          |          |          
+                          |          |          |--0.71%--net.setKeepAliveIdle
+                          |          |          |          net.(*TCPConn).SetKeepAliveConfig
+                          |          |          |          net.newTCPConn
+                          |          |          |          |          
+                          |          |          |           --0.66%--net.(*TCPListener).accept
+                          |          |          |                     net.(*TCPListener).Accept
+                          |          |          |                     main.main
+                          |          |          |                     runtime.main
+                          |          |          |                     runtime.goexit.abi0
+                          |          |          |          
+                          |          |           --0.53%--net.setKeepAlive
+                          |          |                     net.(*TCPConn).SetKeepAliveConfig
+                          |          |                     net.newTCPConn
+                          |          |          
+                          |           --0.70%--syscall.accept4
+                          |                     syscall.Accept4
+                          |                     internal/poll.accept
+                          |                     internal/poll.(*FD).Accept
+                          |                     net.(*netFD).accept
+                          |                     net.(*TCPListener).accept
+                          |                     net.(*TCPListener).Accept
+                          |                     main.main
+                          |                     runtime.main
+                          |                     runtime.goexit.abi0
+                          |          
+                          |--1.59%--syscall.Syscall
+                          |          |          
+                          |          |--0.80%--syscall.read
+                          |          |          internal/poll.(*FD).Read
+                          |          |          net.(*netFD).Read
+                          |          |          net.(*conn).Read
+                          |          |          io.ReadAtLeast
+                          |          |          main.main.func3
+                          |          |          main.main.gowrap1
+                          |          |          runtime.goexit.abi0
+                          |          |          
+                          |           --0.72%--syscall.Close
+                          |                     |          
+                          |                      --0.72%--internal/poll.(*FD).destroy
+                          |                                |          
+                          |                                 --0.66%--internal/poll.(*FD).decref
+                          |                                           internal/poll.(*FD).Close
+                          |                                           net.(*netFD).Close
+                          |                                           net.(*conn).Close
+                          |                                           |          
+                          |                                            --0.57%--main.main.func3.deferwrap1
+                          |                                                      main.main.func3
+                          |                                                      main.main.gowrap1
+                          |                                                      runtime.goexit.abi0
+                          |          
+                          |--0.71%--syscall.RawSyscall
+                          |          |          
+                          |           --0.60%--syscall.getsockname
+                          |                     syscall.Getsockname
+                          |                     |          
+                          |                      --0.55%--net.(*netFD).accept
+                          |                                net.(*TCPListener).accept
+                          |                                net.(*TCPListener).Accept
+                          |                                main.main
+                          |                                runtime.main
+                          |                                runtime.goexit.abi0
+                          |          
+                          |--0.69%--internal/poll.runtime_pollOpen
+                          |          internal/poll.(*pollDesc).init
+                          |          internal/poll.(*FD).Init
+                          |          |          
+                          |           --0.63%--net.(*netFD).accept
+                          |                     net.(*TCPListener).accept
+                          |                     net.(*TCPListener).Accept
+                          |                     main.main
+                          |                     runtime.main
+                          |                     runtime.goexit.abi0
+                          |          
+                           --0.51%--internal/poll.runtime_pollClose
+                                     internal/poll.(*FD).destroy
+
+     4.08%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
+            |
+            ---_raw_spin_unlock_irqrestore
+               |          
+               |--1.60%--__mod_timer
+               |          |          
+               |          |--0.93%--mod_timer
+               |          |          |          
+               |          |           --0.91%--sk_reset_timer
+               |          |          
+               |           --0.68%--mod_timer_pending
+               |                     __inet_twsk_schedule
+               |                     tcp_timewait_state_process
+               |                     tcp_v4_rcv
+               |                     ip_protocol_deliver_rcu
+               |                     ip_local_deliver_finish
+               |                     ip_local_deliver
+               |                     ip_rcv
+               |                     __netif_receive_skb_one_core
+               |                     __netif_receive_skb
+               |                     process_backlog
+               |                     __napi_poll
+               |                     net_rx_action
+               |                     handle_softirqs
+               |                     __do_softirq
+               |                     do_softirq.part.0
+               |                     __local_bh_enable_ip
+               |                     __dev_queue_xmit
+               |                     neigh_hh_output
+               |                     ip_finish_output2
+               |                     __ip_finish_output
+               |                     ip_finish_output
+               |                     ip_output
+               |                     ip_local_out
+               |                     __ip_queue_xmit
+               |                     ip_queue_xmit
+               |                     __tcp_transmit_skb
+               |                     tcp_write_xmit
+               |                     __tcp_push_pending_frames
+               |                     tcp_send_fin
+               |                     __tcp_close
+               |                     tcp_close
+               |                     inet_release
+               |                     __sock_release
+               |                     sock_close
+               |                     __fput
+               |                     __fput_sync
+               |                     __x64_sys_close
+               |                     x64_sys_call
+               |                     do_syscall_64
+               |                     entry_SYSCALL_64_after_hwframe
+               |                     internal/runtime/syscall.Syscall6
+               |                     syscall.Syscall
+               |                     syscall.Close
+               |                     internal/poll.(*FD).destroy
+               |                     internal/poll.(*FD).decref
+               |                     internal/poll.(*FD).Close
+               |                     net.(*netFD).Close
+               |                     net.(*conn).Close
+               |                     |          
+               |                      --0.65%--main.main.func3.deferwrap1
+               |                                main.main.func3
+               |                                main.main.gowrap1
+               |                                runtime.goexit.abi0
+               |          
+                --0.94%--__wake_up_sync_key
+                          sock_def_readable
+                          |          
+                           --0.57%--subflow_data_ready
+                                     tcp_child_process
+                                     tcp_v4_rcv
+                                     ip_protocol_deliver_rcu
+                                     ip_local_deliver_finish
+                                     ip_local_deliver
+                                     ip_rcv
+                                     __netif_receive_skb_one_core
+                                     __netif_receive_skb
+                                     process_backlog
+                                     __napi_poll
+                                     net_rx_action
+                                     handle_softirqs
+                                     __do_softirq
+                                     do_softirq.part.0
+                                     __local_bh_enable_ip
+                                     __dev_queue_xmit
+                                     neigh_hh_output
+                                     ip_finish_output2
+                                     __ip_finish_output
+                                     ip_finish_output
+                                     ip_output
+                                     ip_local_out
+                                     __ip_queue_xmit
+                                     ip_queue_xmit
+                                     __tcp_transmit_skb
+                                     __tcp_send_ack.part.0
+                                     tcp_send_ack
+                                     tcp_rcv_synsent_state_process
+                                     tcp_rcv_state_process
+                                     tcp_v4_do_rcv
+                                     __release_sock
+                                     release_sock
+                                     inet_stream_connect
+                                     __sys_connect_file
+                                     __sys_connect
+                                     __x64_sys_connect
+                                     x64_sys_call
+                                     do_syscall_64
+                                     entry_SYSCALL_64_after_hwframe
+                                     internal/runtime/syscall.Syscall6
+                                     syscall.Syscall
+                                     syscall.connect
+                                     syscall.Connect
+                                     net.(*netFD).connect
+                                     net.(*netFD).dial
+                                     net.socket
+                                     net.internetSocket
+                                     net.(*sysDialer).doDialTCPProto
+                                     net.(*sysDialer).dialTCP
+                                     net.(*sysDialer).dialSingle
+                                     net.(*sysDialer).dialSerial
+                                     net.(*sysDialer).dialParallel
+                                     net.(*Dialer).DialContext
+                                     net.Dial
+                                     main.main.func3
+                                     main.main.gowrap1
+                                     runtime.goexit.abi0
+
+     1.73%  relay-netpoll  [kernel.kallsyms]  [k] __raw_callee_save___pv_queued_spin_unlock
+            |
+            ---__raw_callee_save___pv_queued_spin_unlock
+               |          
+               |--1.01%--_raw_spin_unlock
+               |          
+                --0.70%--_raw_spin_unlock_bh
+
+     1.37%  relay-netpoll  [kernel.kallsyms]  [k] kmem_cache_free
+            |
+            ---kmem_cache_free
+
+     1.37%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_lock_bh
+            |
+            ---_raw_spin_lock_bh
+
+     1.16%  relay-netpoll  [kernel.kallsyms]  [k] __inet_lookup_established
+            |
+            ---__inet_lookup_established
+               |          
+                --1.15%--__inet_lookup_skb
+                          tcp_v4_rcv
+                          ip_protocol_deliver_rcu
+                          ip_local_deliver_finish
+                          ip_local_deliver
+                          ip_rcv
+                          __netif_receive_skb_one_core
+                          __netif_receive_skb
+                          process_backlog
+                          __napi_poll
+                          net_rx_action
+                          handle_softirqs
+                          |          
+                           --1.12%--__do_softirq
+                                     do_softirq.part.0
+                                     __local_bh_enable_ip
+                                     __dev_queue_xmit
+                                     neigh_hh_output
+                                     ip_finish_output2
+                                     __ip_finish_output
+                                     ip_finish_output
+                                     ip_output
+                                     ip_local_out
+                                     __ip_queue_xmit
+                                     ip_queue_xmit
+                                     __tcp_transmit_skb
+                                     |          
+                                      --1.07%--tcp_write_xmit
+                                                __tcp_push_pending_frames
+                                                |          
+                                                 --0.97%--tcp_send_fin
+                                                           __tcp_close
+                                                           tcp_close
+                                                           inet_release
+                                                           __sock_release
+                                                           sock_close
+                                                           __fput
+                                                           __fput_sync
+                                                           __x64_sys_close
+                                                           x64_sys_call
+                                                           do_syscall_64
+                                                           entry_SYSCALL_64_after_hwframe
+                                                           internal/runtime/syscall.Syscall6
+                                                           syscall.Syscall
+                                                           syscall.Close
+                                                           internal/poll.(*FD).destroy
+                                                           |          
+                                                            --0.95%--internal/poll.(*FD).decref
+                                                                      internal/poll.(*FD).Close
+                                                                      net.(*netFD).Close
+                                                                      net.(*conn).Close
+                                                                      |          
+                                                                       --0.89%--main.main.func3.deferwrap1
+                                                                                 main.main.func3
+                                                                                 main.main.gowrap1
+                                                                                 runtime.goexit.abi0
+
+     1.00%  relay-netpoll  [kernel.kallsyms]  [k] __memcg_slab_free_hook
+            |
+            ---__memcg_slab_free_hook
+               |          
+                --0.99%--kmem_cache_free
+
+     0.91%  relay-netpoll  relay-netpoll      [.] runtime.casgstatus
+            |
+            ---runtime.casgstatus
+
+     0.83%  relay-netpoll  [kernel.kallsyms]  [k] __fdget
+            |
+            ---__fdget
+
+     0.83%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_lock
+            |
+            ---_raw_spin_lock
+
+     0.76%  relay-netpoll  [kernel.kallsyms]  [k] __ep_remove
+            |
+            ---__ep_remove
+               |          
+                --0.75%--do_epoll_ctl
+                          __x64_sys_epoll_ctl
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          internal/poll.runtime_pollClose
+                          internal/poll.(*FD).destroy
+                          |          
+                           --0.65%--internal/poll.(*FD).decref
+                                     internal/poll.(*FD).Close
+                                     net.(*netFD).Close
+                                     net.(*conn).Close
+                                     |          
+                                      --0.64%--main.main.func3.deferwrap1
+                                                main.main.func3
+                                                main.main.gowrap1
+                                                runtime.goexit.abi0
+
+     0.74%  relay-netpoll  [kernel.kallsyms]  [k] do_epoll_ctl
+            |
+            ---do_epoll_ctl
+               |          
+                --0.74%--__x64_sys_epoll_ctl
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+
+     0.68%  relay-netpoll  relay-netpoll      [.] runtime.gfget
+            |
+            ---runtime.gfget
+               |          
+                --0.68%--runtime.newproc1
+                          runtime.newproc.func1
+                          runtime.systemstack.abi0
+                          runtime.newproc
+                          main.main
+                          runtime.main
+                          runtime.goexit.abi0
+
+     0.63%  relay-netpoll  [vdso]             [.] 0x0000000000000c6a
+            |
+            ---0x7ffe501eec6a
+
+     0.63%  relay-netpoll  relay-netpoll      [.] runtime.scanobject
+            |
+            ---runtime.scanobject
+
+     0.61%  relay-netpoll  [kernel.kallsyms]  [k] ___slab_alloc
+            |
+            ---___slab_alloc
+
+     0.59%  relay-netpoll  [kernel.kallsyms]  [k] __memcg_slab_post_alloc_hook
+            |
+            ---__memcg_slab_post_alloc_hook
+
+     0.59%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_accept
+            |
+            ---inet_csk_accept
+               mptcp_stream_accept
+               do_accept
+               __sys_accept4
+               __x64_sys_accept4
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.accept4
+               syscall.Accept4
+               internal/poll.accept
+               internal/poll.(*FD).Accept
+               net.(*netFD).accept
+               net.(*TCPListener).accept
+               net.(*TCPListener).Accept
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.59%  relay-netpoll  relay-netpoll      [.] runtime.removespecial
+            |
+            ---runtime.removespecial
+               runtime.removefinalizer
+               runtime.SetFinalizer.func1
+               runtime.systemstack.abi0
+               runtime.SetFinalizer
+               net.(*netFD).Close
+               net.(*conn).Close
+               |          
+                --0.55%--main.main.func3.deferwrap1
+                          main.main.func3
+                          main.main.gowrap1
+                          runtime.goexit.abi0
+
+     0.57%  relay-netpoll  relay-netpoll      [.] runtime.lock2
+            |
+            ---runtime.lock2
+
+     0.57%  relay-netpoll  [kernel.kallsyms]  [k] tcp_poll
+            |
+            ---tcp_poll
+               |          
+                --0.55%--sock_poll
+                          ep_item_poll.isra.0
+
+     0.57%  relay-netpoll  [kernel.kallsyms]  [k] tcp_recvmsg_locked
+            |
+            ---tcp_recvmsg_locked
+               tcp_recvmsg
+               inet_recvmsg
+               sock_recvmsg
+               sock_read_iter
+               vfs_read
+               ksys_read
+               __x64_sys_read
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall
+               syscall.read
+               internal/poll.(*FD).Read
+               net.(*netFD).Read
+               net.(*conn).Read
+               io.ReadAtLeast
+               main.main.func3
+               main.main.gowrap1
+               runtime.goexit.abi0
+
+     0.56%  relay-netpoll  [kernel.kallsyms]  [k] slab_update_freelist.isra.0
+            |
+            ---slab_update_freelist.isra.0
+               |          
+                --0.51%--__slab_free
+
+     0.55%  relay-netpoll  [kernel.kallsyms]  [k] kmem_cache_alloc
+            |
+            ---kmem_cache_alloc
+
+     0.53%  relay-netpoll  [kernel.kallsyms]  [k] sock_poll
+            |
+            ---sock_poll
+
+     0.53%  relay-netpoll  [kernel.kallsyms]  [k] tcp_send_fin
+            |
+            ---tcp_send_fin
+               |          
+                --0.53%--__tcp_close
+                          tcp_close
+                          inet_release
+                          __sock_release
+                          sock_close
+                          __fput
+                          __fput_sync
+                          __x64_sys_close
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.Close
+                          internal/poll.(*FD).destroy
+                          |          
+                           --0.52%--internal/poll.(*FD).decref
+                                     internal/poll.(*FD).Close
+                                     net.(*netFD).Close
+                                     net.(*conn).Close
+
+     0.52%  relay-netpoll  [kernel.kallsyms]  [k] aa_inet_msg_perm
+            |
+            ---aa_inet_msg_perm
+
+     0.50%  relay-netpoll  [kernel.kallsyms]  [k] memset_orig
+     0.50%  relay-netpoll  [kernel.kallsyms]  [k] mod_memcg_state
+     0.48%  relay-netpoll  relay-netpoll      [.] runtime.mallocgcSmallScanNoHeader
+     0.47%  relay-netpoll  [kernel.kallsyms]  [k] tcp_clean_rtx_queue.constprop.0
+     0.46%  relay-netpoll  [kernel.kallsyms]  [k] rw_verify_area
+     0.46%  relay-netpoll  relay-netpoll      [.] internal/poll.runtime_pollReset
+     0.44%  relay-netpoll  [kernel.kallsyms]  [k] __ip_queue_xmit
+     0.44%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_transmit_skb
+     0.44%  relay-netpoll  relay-netpoll      [.] runtime.step
+     0.42%  relay-netpoll  [kernel.kallsyms]  [k] __mod_timer
+     0.42%  relay-netpoll  [kernel.kallsyms]  [k] fput
+     0.42%  relay-netpoll  [kernel.kallsyms]  [k] pvclock_clocksource_read_nowd
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] finish_task_switch.isra.0
+     0.40%  relay-netpoll  [kernel.kallsyms]  [k] lockref_put_return
+     0.40%  relay-netpoll  relay-netpoll      [.] runtime.pcvalue
+     0.39%  relay-netpoll  relay-netpoll      [.] runtime.newproc1
+     0.38%  relay-netpoll  [kernel.kallsyms]  [k] __fdget_pos
+     0.38%  relay-netpoll  [kernel.kallsyms]  [k] nft_do_chain
+     0.37%  relay-netpoll  [kernel.kallsyms]  [k] mptcp_stream_accept
+     0.37%  relay-netpoll  relay-netpoll      [.] runtime.addspecial
+     0.36%  relay-netpoll  [kernel.kallsyms]  [k] tcp_sock_set_keepidle_locked
+     0.36%  relay-netpoll  relay-netpoll      [.] main.main.gowrap1
+     0.36%  relay-netpoll  relay-netpoll      [.] net.(*netFD).Read
+     0.36%  relay-netpoll  relay-netpoll      [.] runtime.schedule
+     0.36%  relay-netpoll  [kernel.kallsyms]  [k] __rcu_read_lock
+     0.36%  relay-netpoll  [kernel.kallsyms]  [k] inet_getname
+     0.36%  relay-netpoll  [kernel.kallsyms]  [k] tcp_set_keepalive
+     0.35%  relay-netpoll  [kernel.kallsyms]  [k] __init_rwsem
+     0.35%  relay-netpoll  [kernel.kallsyms]  [k] validate_xmit_skb
+     0.34%  relay-netpoll  relay-netpoll      [.] runtime.netpoll
+     0.34%  relay-netpoll  relay-netpoll      [.] runtime.unlock2
+     0.33%  relay-netpoll  [kernel.kallsyms]  [k] release_sock
+     0.33%  relay-netpoll  [kernel.kallsyms]  [k] rb_erase
+     0.32%  relay-netpoll  [kernel.kallsyms]  [k] __rcu_read_unlock
+     0.32%  relay-netpoll  relay-netpoll      [.] runtime.(*fixalloc).alloc
+     0.32%  relay-netpoll  relay-netpoll      [.] runtime.globrunqgetbatch
+     0.31%  relay-netpoll  [kernel.kallsyms]  [k] aa_file_perm
+     0.31%  relay-netpoll  [kernel.kallsyms]  [k] mod_objcg_state
+     0.31%  relay-netpoll  relay-netpoll      [.] internal/poll.runtime_pollUnblock
+     0.31%  relay-netpoll  relay-netpoll      [.] runtime.reentersyscall
+     0.30%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rearm_rto
+     0.30%  relay-netpoll  [kernel.kallsyms]  [k] truncate_inode_pages_final
+     0.29%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_select_window
+     0.29%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_rcv
+     0.29%  relay-netpoll  [kernel.kallsyms]  [k] __call_rcu_common
+     0.29%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock_irq
+     0.29%  relay-netpoll  relay-netpoll      [.] runtime.(*pollCache).alloc
+     0.28%  relay-netpoll  [kernel.kallsyms]  [k] __dev_queue_xmit
+     0.28%  relay-netpoll  [kernel.kallsyms]  [k] hook_inode_free_security
+     0.28%  relay-netpoll  relay-netpoll      [.] runtime.(*unwinder).resolveInternal
+     0.27%  relay-netpoll  [kernel.kallsyms]  [k] __slab_free
+     0.27%  relay-netpoll  [kernel.kallsyms]  [k] percpu_counter_add_batch
+     0.27%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ack
+     0.27%  relay-netpoll  relay-netpoll      [.] runtime.exitsyscall
+     0.27%  relay-netpoll  relay-netpoll      [.] runtime.isSystemGoroutine
+     0.27%  relay-netpoll  relay-netpoll      [.] runtime.SetFinalizer
+     0.26%  relay-netpoll  [kernel.kallsyms]  [k] fib_table_lookup
+     0.25%  relay-netpoll  [kernel.kallsyms]  [k] dst_release
+     0.25%  relay-netpoll  [kernel.kallsyms]  [k] locks_remove_posix
+     0.24%  relay-netpoll  [kernel.kallsyms]  [k] _copy_from_user
+     0.24%  relay-netpoll  [kernel.kallsyms]  [k] init_file
+     0.24%  relay-netpoll  [kernel.kallsyms]  [k] inode_init_always
+     0.23%  relay-netpoll  [kernel.kallsyms]  [k] kmem_cache_alloc_node
+     0.23%  relay-netpoll  relay-netpoll      [.] internal/poll.(*fdMutex).rwlock
+     0.23%  relay-netpoll  relay-netpoll      [.] runtime.findfunc
+     0.23%  relay-netpoll  [kernel.kallsyms]  [k] mutex_lock
+     0.23%  relay-netpoll  relay-netpoll      [.] runtime.mallocgcSmallNoscan
+     0.22%  relay-netpoll  [kernel.kallsyms]  [k] fsnotify_grab_connector
+     0.22%  relay-netpoll  [kernel.kallsyms]  [k] ip_finish_output2
+     0.22%  relay-netpoll  [kernel.kallsyms]  [k] kfree
+     0.22%  relay-netpoll  relay-netpoll      [.] internal/poll.(*fdMutex).rwunlock
+     0.21%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_sock_set_nodelay.part.0
+     0.21%  relay-netpoll  relay-netpoll      [.] runtime.semrelease1
+     0.20%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_sock_graft
+     0.20%  relay-netpoll  [kernel.kallsyms]  [k] clear_inode
+     0.20%  relay-netpoll  [kernel.kallsyms]  [k] kmem_cache_alloc_lru
+     0.20%  relay-netpoll  [kernel.kallsyms]  [k] ep_insert
+     0.20%  relay-netpoll  [kernel.kallsyms]  [k] sock_read_iter
+     0.19%  relay-netpoll  [kernel.kallsyms]  [k] __local_bh_enable_ip
+     0.19%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_cleanup_rbuf
+     0.18%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_file_alloc_security
+     0.18%  relay-netpoll  [kernel.kallsyms]  [k] net_rx_action
+     0.18%  relay-netpoll  [kernel.kallsyms]  [k] x64_sys_call
+     0.18%  relay-netpoll  relay-netpoll      [.] main.main
+     0.18%  relay-netpoll  relay-netpoll      [.] main.main.func3
+     0.18%  relay-netpoll  relay-netpoll      [.] runtime.(*stkframe).getStackMap
+     0.18%  relay-netpoll  [kernel.kallsyms]  [k] __sys_setsockopt
+     0.18%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_recvmsg
+     0.18%  relay-netpoll  relay-netpoll      [.] runtime.(*pollDesc).publishInfo
+     0.17%  relay-netpoll  [kernel.kallsyms]  [k] ip_protocol_deliver_rcu
+     0.17%  relay-netpoll  [kernel.kallsyms]  [k] tcp_timewait_state_process
+     0.17%  relay-netpoll  [kernel.kallsyms]  [k] tcp_write_xmit
+     0.17%  relay-netpoll  relay-netpoll      [.] runtime.(*moduledata).textAddr
+     0.17%  relay-netpoll  relay-netpoll      [.] runtime.exitsyscallfast
+     0.17%  relay-netpoll  relay-netpoll      [.] runtime.gostartcallfn
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] ep_item_poll.isra.0
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] ep_send_events
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] handle_softirqs
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] hrtimer_active
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] inet_release
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] rep_movs_alternative
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] tcp_current_mss
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] __netif_receive_skb_core.constprop.0
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_get_metrics
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] map_id_range_down
+     0.16%  relay-netpoll  [kernel.kallsyms]  [k] tcp_set_state
+     0.16%  relay-netpoll  relay-netpoll      [.] runtime.stackpoolalloc
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_file_free_security
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_file_permission
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] clear_page_erms
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] ep_refcount_dec_and_test
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] ip_mc_drop_socket
+     0.15%  relay-netpoll  [kernel.kallsyms]  [k] refill_stock
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] __d_alloc
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] _copy_to_user
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] down_write
+     0.14%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).writeHeapBitsSmall
+     0.14%  relay-netpoll  relay-netpoll      [.] runtime.gfput
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] do_sock_setsockopt
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] do_tcp_setsockopt
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] ip_output
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] ip_rcv_core
+     0.14%  relay-netpoll  [kernel.kallsyms]  [k] sock_rfree
+     0.14%  relay-netpoll  relay-netpoll      [.] runtime.netpollblock
+     0.14%  relay-netpoll  relay-netpoll      [.] syscall.RawSyscall6
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] __sk_destruct
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] aa_inet_opt_perm
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] do_splice
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] loopback_xmit
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] tcp_established_options
+     0.13%  relay-netpoll  [kernel.kallsyms]  [k] tcp_release_cb
+     0.13%  relay-netpoll  relay-netpoll      [.] runtime.markroot
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] dentry_unlink_inode
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] ip_local_deliver
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] nf_hook_slow
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] skb_attempt_defer_free
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] skb_release_data
+     0.12%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).SetsockoptInt
+     0.12%  relay-netpoll  relay-netpoll      [.] net.(*netFD).accept
+     0.12%  relay-netpoll  relay-netpoll      [.] runtime.findObject
+     0.12%  relay-netpoll  relay-netpoll      [.] runtime.mallocgc
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_sk_free_security
+     0.12%  relay-netpoll  [kernel.kallsyms]  [k] obj_cgroup_charge
+     0.12%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).decref
+     0.12%  relay-netpoll  relay-netpoll      [.] internal/poll.runtime_pollOpen
+     0.12%  relay-netpoll  relay-netpoll      [.] runtime.memclrNoHeapPointers
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] __fput
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] __ip_append_data
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_close
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] _raw_write_unlock_irq
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_setsockopt
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] ip_local_deliver_finish
+     0.11%  relay-netpoll  [kernel.kallsyms]  [k] refill_obj_stock
+     0.11%  relay-netpoll  relay-netpoll      [.] io.ReadAtLeast
+     0.11%  relay-netpoll  relay-netpoll      [.] runtime.(*unwinder).initAt
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] __fput_sync
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] __memcg_slab_pre_alloc_hook
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] cubictcp_acked
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] current_obj_cgroup
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] do_softirq.part.0
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] ip_send_unicast_reply
+     0.10%  relay-netpoll  relay-netpoll      [.] runtime.adjustpointers
+     0.10%  relay-netpoll  relay-netpoll      [.] runtime.scanblock
+     0.10%  relay-netpoll  relay-netpoll      [.] runtime.wirep
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] __inet_lookup_skb
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] __ip_finish_output
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] alloc_fd
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] ip_finish_output
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] kfree_skbmem
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] rcu_cblist_dequeue
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] sk_setsockopt
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] skb_release_head_state
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] syscall_exit_to_user_mode_prepare
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] tcp_schedule_loss_probe.part.0
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_send_ack
+     0.10%  relay-netpoll  [kernel.kallsyms]  [k] xfrm_lookup_with_ifid
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] __put_user_nocheck_4
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_ip_postroute
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] consume_obj_stock
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] kvm_clock_get_cycles
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] lock_timer_base
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] netlink_has_listeners
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] sk_filter_trim_cap
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] tcp_check_space
+     0.09%  relay-netpoll  [kernel.kallsyms]  [k] tcp_setsockopt
+     0.09%  relay-netpoll  relay-netpoll      [.] runtime.findRunnable
+     0.09%  relay-netpoll  relay-netpoll      [.] runtime.gopark
+     0.09%  relay-netpoll  relay-netpoll      [.] runtime.newobject
+     0.09%  relay-netpoll  relay-netpoll      [.] runtime.usleep.abi0
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] __alloc_skb
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] enqueue_to_backlog
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] eth_type_trans
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] get_pipe_info
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] sock_common_setsockopt
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] tcp_release_cb_override
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] tcp_stream_memory_free
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] tcp_write_queue_purge
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] xas_start
+     0.08%  relay-netpoll  relay-netpoll      [.] runtime.(*sweepLocked).sweep
+     0.08%  relay-netpoll  relay-netpoll      [.] runtime.(*timeHistogram).record
+     0.08%  relay-netpoll  relay-netpoll      [.] runtime.addfinalizer
+     0.08%  relay-netpoll  relay-netpoll      [.] runtime.gcmarknewobject
+     0.08%  relay-netpoll  relay-netpoll      [.] runtime.greyobject
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] __cond_resched
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] __ip_local_out
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] __raw_spin_lock_irqsave
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_epoll_ctl
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock_bh
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_inode_alloc_security
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] ip_rcv_finish_core.isra.0
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] ip_send_check
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] ip_skb_dst_mtu
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] iput
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] rb_insert_color
+     0.08%  relay-netpoll  [kernel.kallsyms]  [k] tcp_validate_incoming
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] __mkroute_output
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] do_user_addr_fault
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] inet_ehashfn
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] inet_unhash
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get_with_offset
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] memcg_list_lru_alloc
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] netif_skb_features
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] sk_reset_timer
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] subflow_req_destructor
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] tcp_cwnd_validate
+     0.07%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rcv_state_process
+     0.07%  relay-netpoll  relay-netpoll      [.] net.sockaddrToTCP
+     0.07%  relay-netpoll  relay-netpoll      [.] runtime.(*spanSet).pop
+     0.07%  relay-netpoll  relay-netpoll      [.] runtime.memmove
+     0.07%  relay-netpoll  relay-netpoll      [.] syscall.Syscall6
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] __skb_datagram_iter
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] __skb_splice_bits.isra.0
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] __sys_getsockname
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_close
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_d_instantiate
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] dev_get_by_index_rcu
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_destroy_sock
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] inet_put_port
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] nft_do_chain_ipv4
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] skb_push
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] syscall_exit_to_user_mode
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] tcp_done
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] tcp_fastopen_active_disable_ofo_check
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rcv_established
+     0.06%  relay-netpoll  [kernel.kallsyms]  [k] xa_load
+     0.06%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).Read
+     0.06%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).ReadFrom
+     0.06%  relay-netpoll  relay-netpoll      [.] net.newTCPConn
+     0.06%  relay-netpoll  relay-netpoll      [.] net/netip.ParseAddr
+     0.06%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).ensureSwept
+     0.06%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).heapBitsSmallForAddr
+     0.06%  relay-netpoll  relay-netpoll      [.] runtime.adjustframe
+     0.06%  relay-netpoll  relay-netpoll      [.] runtime.stackfree
+     0.06%  relay-netpoll  relay-netpoll      [.] runtime.systemstack.abi0
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __build_skb_around
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __get_user_4
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __memset
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __release_sock
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __sk_dst_check
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __usecs_to_jiffies
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] aa_inet_accept_perm
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] dev_hard_start_xmit
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] fd_install
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] raw_local_deliver
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] security_d_instantiate
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ack_update_rtt
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ack_update_window.isra.0
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_cleanup_congestion_control
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_filter
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rate_gen
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rtt_estimator
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_destroy_sock
+     0.05%  relay-netpoll  [vdso]             [.] 0x0000000000000cae
+     0.05%  relay-netpoll  relay-netpoll      [.] net.(*netFD).connect
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.forEachG
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.gcResetMarkState.func1
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.mcall
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.nanotime1.abi0
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.netpollready
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.suspendG
+     0.05%  relay-netpoll  relay-netpoll      [.] time.now
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __copy_skb_header
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __dentry_kill
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __inet_hash_connect
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __kfree_skb
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __netif_receive_skb
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __skb_clone
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] __srcu_read_lock
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] consume_stock
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] inet_sock_destruct
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] ip_local_out
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] ip_rcv
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] ip_route_output_key_hash_rcu
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] irqentry_exit_to_user_mode
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] kmalloc_reserve
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get_seconds
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_sk_free
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] memcpy_orig
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] raw_v4_input
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] security_file_free
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] security_inode_alloc
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] sk_getsockopt
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] sock_alloc_inode
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] sock_setsockopt
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] sock_wfree
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_conn_request
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rack_update_reo_wnd
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rcv_space_adjust
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_update_metrics
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] tcp_wfree
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] truncate_inode_pages_range
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] try_charge_memcg
+     0.05%  relay-netpoll  [kernel.kallsyms]  [k] vfs_read
+     0.05%  relay-netpoll  relay-netpoll      [.] net.spliceFrom
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).init
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.(*stkframe).argMapInternal
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.(*unwinder).next
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.entersyscall
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.execute
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.gogo.abi0
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.ifaceeq
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.sweepone
+     0.05%  relay-netpoll  relay-netpoll      [.] runtime.sysmon
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] __ip_make_skb
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] __netif_receive_skb_one_core
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] __netif_rx
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] alloc_file
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] alloc_inode
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] dput
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] fib_lookup_good_nhc
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] file_close_fd_locked
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] ipv4_mtu
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] lock_sock_nested
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] move_addr_to_user
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] mutex_unlock
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] napi_consume_skb
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] neigh_hh_output
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] process_backlog
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] sk_forced_mem_schedule
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] sk_stop_timer
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] sk_stream_wait_close
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] skb_network_protocol
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] sock_def_readable
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] sock_put
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] splice_to_socket
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_add_backlog
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_event_new_data_sent
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_fin
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_get_metrics
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rate_check_app_limited
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_recvmsg
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_tso_segs
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] tcp_update_pacing_rate
+     0.04%  relay-netpoll  [kernel.kallsyms]  [k] timer_delete
+     0.04%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Read
+     0.04%  relay-netpoll  relay-netpoll      [.] runtime.(*activeSweep).end
+     0.04%  relay-netpoll  relay-netpoll      [.] runtime.gdestroy
+     0.04%  relay-netpoll  relay-netpoll      [.] runtime.netpollclose
+     0.04%  relay-netpoll  relay-netpoll      [.] runtime.stackcacherelease
+     0.04%  relay-netpoll  relay-netpoll      [.] runtime.stackpoolfree
+     0.04%  relay-netpoll  relay-netpoll      [.] syscall.Close
+     0.04%  relay-netpoll  relay-netpoll      [.] syscall.setsockopt
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __inet_twsk_schedule
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_push_pending_frames
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_send_ack.part.0
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_sendmsg
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] begin_current_label_crit_section
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] bpf_skops_write_hdr_opt.isra.0
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] csum_partial_copy_generic
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] dentry_free
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] do_accept
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] do_anonymous_page
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] hook_file_alloc_security
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] hrtimer_try_to_cancel
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] native_write_msr
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] put_cpu_partial
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] should_failslab.constprop.0
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] skb_clone
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] skb_clone_tx_timestamp
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] skb_free_head
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] sock_alloc
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] sockopt_lock_sock
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_close
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_do_parse_auth_options
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_event_data_recv
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_inbound_hash.constprop.0
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_recv_skb
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_do_rcv
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] validate_xmit_xfrm
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] xas_descend
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] xfrm_lookup_route
+     0.03%  relay-netpoll  relay-netpoll      [.] github.com/thealonlevi/flash-relay/gate/internal/hook.Spin
+     0.03%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).destroy
+     0.03%  relay-netpoll  relay-netpoll      [.] internal/poll.putPipe
+     0.03%  relay-netpoll  relay-netpoll      [.] internal/poll.spliceDrain
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*Resolver).internetAddrList
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).Close
+     0.03%  relay-netpoll  relay-netpoll      [.] net/netip.parseIPv4
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.exitsyscallfast_reacquired
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.markrootSpans
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.newproc.func1
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.pidlegetSpinning
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.stackalloc
+     0.03%  relay-netpoll  relay-netpoll      [.] sync.(*poolDequeue).popHead
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __check_object_size
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __init_waitqueue_head
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __kmalloc
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __percpu_counter_compare
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __sk_mem_reclaim
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] __sk_mem_reduce_allocated
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] _atomic_dec_and_lock
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] _find_next_zero_bit
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] alloc_empty_file
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] alloc_file_pseudo
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_sk_clone_security
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] cgroup_sk_free
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] check_heap_object
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] ep_ptable_queue_proc
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] filp_flush
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] free_pipe_info
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] inet_recvmsg
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] inet_sk_state_store
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] inet_twsk_put
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] ipv4_dst_check
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] jiffies_to_usecs
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] ksys_read
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_sk_alloc
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mntget
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mntput
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mntput_no_expire
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mod_timer
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] mod_timer_pending
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] netdev_core_pick_tx
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] netif_rx_internal
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] page_counter_try_charge
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] qdisc_pkt_len_init
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] rb_first
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] security_sk_free
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] security_skb_classify_flow
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] skb_queue_purge_reason
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] sock_write_iter
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] sockfd_lookup_light
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] sockopt_release_sock
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] strcmp
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_data_queue
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_newly_delivered
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_schedule_loss_probe
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_send_ack
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_sendmsg_locked
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_splice_read
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_sync_mss
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_send_check
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] vfs_write
+     0.03%  relay-netpoll  [kernel.kallsyms]  [k] wake_up_bit
+     0.03%  relay-netpoll  [vdso]             [.] 0x0000000000000ae9
+     0.03%  relay-netpoll  [vdso]             [.] 0x0000000000000c93
+     0.03%  relay-netpoll  relay-netpoll      [.] indexbytebody
+     0.03%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).readUnlock
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*conn).Close
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*sysDialer).dialParallel
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*sysDialer).dialSingle
+     0.03%  relay-netpoll  relay-netpoll      [.] net.(*sysDialer).doDialTCPProto
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.(*spanSet).push
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.funcMaxSPDelta
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.gcScanFinalizer
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.getcallerfp
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.save
+     0.03%  relay-netpoll  relay-netpoll      [.] runtime.wakep
+     0.03%  relay-netpoll  relay-netpoll      [.] syscall.Syscall
+     0.03%  relay-netpoll  relay-netpoll      [.] syscall.anyToSockaddr
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] __d_instantiate
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] __ip_dev_find
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] __srcu_read_unlock
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_setsockopt
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] __xfrm_policy_check2.constprop.0
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] _raw_write_lock_bh
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_inode_free_security
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_accept
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_sock_rcv_skb
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] bpf_sk_storage_free
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] csum_partial_copy_nocheck
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] cubictcp_cong_avoid
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] dnotify_flush
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] do_splice_read
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] fsnotify_destroy_marks
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] inet_lhash2_lookup
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] ip_queue_xmit
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] ip_route_output_flow
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] locks_free_lock_context
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_charge_skmem
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_commit_charge
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] path_put
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] security_inode_free
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] security_sk_alloc
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_setsockopt
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] sk_stream_kill_queues
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] skb_page_frag_refill
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] sock_splice_read
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ao_destroy_sock
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_chrono_stop
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_cleanup_ulp
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_init_cwnd
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_init_sock
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_mstamp_refresh
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_openreq_init_rwin
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_options_write
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_parse_options
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_queue_rcv
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_recv_timestamp
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_select_initial_window
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_send_mss
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_fill_cb
+     0.02%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_timewait_ack
+     0.02%  relay-netpoll  [vdso]             [.] __vdso_clock_gettime
+     0.02%  relay-netpoll  [vdso]             [.] 0x0000000000000ada
+     0.02%  relay-netpoll  [vdso]             [.] 0x0000000000000b15
+     0.02%  relay-netpoll  [vdso]             [.] 0x0000000000000c73
+     0.02%  relay-netpoll  [vdso]             [.] 0x0000000000000c87
+     0.02%  relay-netpoll  [vdso]             [.] 0x0000000000000ca9
+     0.02%  relay-netpoll  relay-netpoll      [.] gosave_systemstack_switch
+     0.02%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).SetsockoptInt.deferwrap1
+     0.02%  relay-netpoll  relay-netpoll      [.] internal/poll.Splice
+     0.02%  relay-netpoll  relay-netpoll      [.] internal/poll.accept
+     0.02%  relay-netpoll  relay-netpoll      [.] internal/poll.runtime_pollWait
+     0.02%  relay-netpoll  relay-netpoll      [.] main.main.func3.deferwrap1
+     0.02%  relay-netpoll  relay-netpoll      [.] net.(*TCPListener).accept
+     0.02%  relay-netpoll  relay-netpoll      [.] net.(*sysDialer).dialSerial
+     0.02%  relay-netpoll  relay-netpoll      [.] net.init.func2
+     0.02%  relay-netpoll  relay-netpoll      [.] net.minNonzeroTime
+     0.02%  relay-netpoll  relay-netpoll      [.] net.setNoDelay
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*m).clearAllpSnapshot
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*mheap).initSpan
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*moduledata).funcName
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).refillAllocCache
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*pallocBits).summarize
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.(*timers).check
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.duffcopy
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.findnull
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.gcAssistAlloc
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.gcDrain
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.gcDrainN
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.goexit.abi0
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.markrootFreeGStacks
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.newMarkBits
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.ready
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.removefinalizer
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.runqput
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.runqputbatch
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.scanframeworker
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.semacquire1
+     0.02%  relay-netpoll  relay-netpoll      [.] runtime.typePointers.next
+     0.02%  relay-netpoll  relay-netpoll      [.] time.Time.Add
+     0.02%  relay-netpoll  relay-netpoll      [.] time.Time.Before
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __check_object_size.part.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __destroy_inode
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __free_slab
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __hrtimer_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __inet_stream_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __napi_poll
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __put_partials
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __pv_queued_spin_lock_slowpath
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sk_free
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __skb_checksum
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sock_create
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sock_release
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __splice_segment.isra.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sys_accept4
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_getsockname
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_read
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_lock_irq
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_trylock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] call_rcu
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] csum_partial
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] d_alloc_pseudo
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] epi_rcu_free
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] errseq_sample
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] file_close_fd
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_mem_cgroup_from_mm
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_pfnblock_flags_mask
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_random_u16
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] hrtimer_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] i_callback
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_clear_xmit_timers
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_complete_hashdance
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_ehash_insert
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_twsk_alloc
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_twsk_bind_unhash
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inode_has_buffers
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ip_setup_cork.constprop.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] kfree_skb_reason
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] llist_add_batch
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] mptcp_get_options
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] obj_cgroup_uncharge_pages
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] pte_offset_map_nolock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] secure_tcp_seq
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_sock_rcv_skb
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_accept
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_getsockname
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] siphash_1u64
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_alloc
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_clone_lock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_setup_caps
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] skb_copy_datagram_iter
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] skb_rbtree_purge
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] skb_splice_from_iter
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sock_alloc_file
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_data_ready
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_syn_recv_sock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_v4_conn_request
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_child_process
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_connect_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_free_fastopen_req
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_init_congestion_control
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_init_transfer
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_mtup_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rate_skb_sent
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rbtree_insert
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_read_sock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_update_skb_after_send
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_urg
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_syn_recv_sock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] zap_pte_range
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ab0
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b3a
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b3d
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b76
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b83
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b85
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000c48
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000c4e
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000cbd
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Accept
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Close
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Init
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Write
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*pollDesc).init
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.spliceDrain.deferwrap1
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.splicePump
+     0.01%  relay-netpoll  relay-netpoll      [.] io.copyBuffer
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Dialer).DialContext
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*netFD).dial
+     0.01%  relay-netpoll  relay-netpoll      [.] net.favoriteAddrFamily
+     0.01%  relay-netpoll  relay-netpoll      [.] net.internetSocket
+     0.01%  relay-netpoll  relay-netpoll      [.] net.setDefaultSockopts
+     0.01%  relay-netpoll  relay-netpoll      [.] net.setKeepAliveCount
+     0.01%  relay-netpoll  relay-netpoll      [.] net.socket
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mcache).nextFree
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).alloc
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).allocToCache
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).find
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).update
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pollCache).free
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*spanSet).reset
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*sweepLocker).tryAcquire
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.castogscanstatus
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.deferreturn
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.futex.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.gcFlushBgCredit
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.getempty
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.growslice
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.madvise.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.morestack_noctxt.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.pcdatavalue
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.pidleget
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.publicationBarrier
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.releaseSudog
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.shrinkstack
+     0.01%  relay-netpoll  relay-netpoll      [.] sync.(*Pool).Get
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.Connect
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.Socket
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.accept4
+     0.01%  relay-netpoll  relay-netpoll      [.] time.Now
+     0.01%  relay-netpoll  relay-netpoll      [.] time.runtimeNow
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __folio_throttle_swaprate
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __free_pages
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __fsnotify_inode_delete
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __inet_bhash2_update_saddr
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __inet_check_established
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __inet_lookup_listener
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __inode_wait_for_writeback
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __ip_options_echo
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __memcg_kmem_charge_page
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __memcpy
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __mutex_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __pte_offset_map_lock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __rmqueue_pcplist
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __skb_checksum_complete
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sock_wfree
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sys_getpeername
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __sys_socket
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_ack_snd_check
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __timer_delete_sync
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __wake_up_sync_key
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_accept4
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_getpeername
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_getsockopt
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] __x64_sys_socket
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] _copy_to_iter
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] aa_inet_sock_perm
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_inet_conn_request
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_getpeername
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_getsockname
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_post_create
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] bit_waitqueue
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] blk_cgroup_congested
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] cgroup_sk_alloc
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] cgroup_sk_clone
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] check_stack_object
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] copy_fpstate_to_sigframe
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] cubictcp_state
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] d_flags_for_inode
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] d_instantiate
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] evict
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] find_exception
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] flush_tlb_mm_range
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] folio_add_lru
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] fpu__clear_user_states
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] free_large_kmalloc
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] futex_wake
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] generic_exec_single
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] generic_pipe_buf_release
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_any_partial
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_next_ino
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_page_from_freelist
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_random_u32
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] get_random_u8
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ima_file_free
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_bhash2_update_saddr
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_bind2_bucket_find
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_bind_bucket_destroy
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_clone_lock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_reqsk_queue_hash_add
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_csk_reset_keepalive_timer
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_label_sock_perm
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_reqsk_alloc
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_sendmsg
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_sk_rebuild_header
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_sk_rx_dst_set
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_sk_set_state
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inet_twsk_hashdance_schedule
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inode_set_ctime_current
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] inode_wait_for_writeback
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] iov_iter_advance
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ip_append_data.part.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ip_build_and_send_pkt
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ip_push_pending_frames
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] ipv4_default_advmss
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] is_vmalloc_addr
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] lockref_mark_dead
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] locks_remove_file
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] lruvec_stat_mod_folio.constprop.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] make_kgid
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] make_kuid
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] mas_walk
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_uncharge_skmem
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] memcg_account_kmem
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] module_put
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] move_addr_to_kernel
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] mptcp_synack_options
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] native_send_call_func_single_ipi
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] nf_conntrack_put
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] nft_update_chain_stats
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] obj_cgroup_uncharge
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] path_get
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] pfn_pte
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] pipe_unlock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] prep_compound_page
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] rb_next
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] rcu_core
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] rcu_do_batch
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] rcu_nocb_unlock_irqrestore.part.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] refcount_dec_and_lock_irqsave
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] rmqueue
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] schedule
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] secure_ipv4_port_ephemeral
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_inet_conn_request
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_create
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_getpeername
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] set_ptes.isra.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] siphash_2u64
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] siphash_3u32
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_free
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_leave_memory_pressure
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sk_page_frag_refill
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] skb_append_pagefrags
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] skb_condense
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sock_close
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sock_free_inode
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] sock_recvmsg
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] splice_file_to_pipe
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] splice_to_pipe
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] stream_open
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_check_req
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_v4_req_destructor
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_v4_route_req
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] subflow_v4_send_synack
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ack_tstamp
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ao_connect_init
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ao_established
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_check_req
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_cleanup_rbuf
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_clear_retrans
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_delack_max
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_delack_timer_handler
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_fastopen_defer_connect
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_grow_window
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_init_metrics
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_make_synack
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rack_advance
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rearm_rto.part.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_sendmsg
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_small_queue_check.isra.0
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_stream_alloc_skb
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_synack_options
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_try_fastopen
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_try_rmem_schedule
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_twsk_destructor
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_init_sock
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_route_req
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] tcp_v4_send_synack
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] try_module_get
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] try_to_wake_up
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] up_write
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] wakeup_source_unregister
+     0.01%  relay-netpoll  [kernel.kallsyms]  [k] x2apic_send_IPI
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ab4
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ab7
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000abb
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000abf
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ad6
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ad8
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b34
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b4d
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b50
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b75
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b7d
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000b8e
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000c6c
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000c84
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000c8e
+     0.01%  relay-netpoll  [vdso]             [.] 0x0000000000000ca6
+     0.01%  relay-netpoll  relay-netpoll      [.] context.(*backgroundCtx).Deadline
+     0.01%  relay-netpoll  relay-netpoll      [.] context.(*backgroundCtx).Done
+     0.01%  relay-netpoll  relay-netpoll      [.] gogo
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/godebug.(*Setting).Value
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Accept.deferwrap1
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).Read.deferwrap1
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*FD).writeUnlock
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*fdMutex).increfAndClose
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*pollDesc).prepare
+     0.01%  relay-netpoll  relay-netpoll      [.] internal/poll.(*pollDesc).wait
+     0.01%  relay-netpoll  relay-netpoll      [.] memeqbody
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Dialer).deadline
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Resolver).LookupPort
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Resolver).internetAddrList.func1
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Resolver).lookupIPAddr
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*Resolver).resolveAddrList
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).SetKeepAliveConfig
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).Write
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).WriteTo
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).readFrom
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPConn).writeTo
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*TCPListener).Accept
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*mptcpStatusDial).get
+     0.01%  relay-netpoll  relay-netpoll      [.] net.(*sysDialer).dialTCP
+     0.01%  relay-netpoll  relay-netpoll      [.] net.Dial
+     0.01%  relay-netpoll  relay-netpoll      [.] net.SplitHostPort
+     0.01%  relay-netpoll  relay-netpoll      [.] net.init.func3
+     0.01%  relay-netpoll  relay-netpoll      [.] net.ipToSockaddr
+     0.01%  relay-netpoll  relay-netpoll      [.] net.isIPv4
+     0.01%  relay-netpoll  relay-netpoll      [.] net.parsePort
+     0.01%  relay-netpoll  relay-netpoll      [.] net.setKeepAlive
+     0.01%  relay-netpoll  relay-netpoll      [.] net.setKeepAliveIdle
+     0.01%  relay-netpoll  relay-netpoll      [.] net.setKeepAliveInterval
+     0.01%  relay-netpoll  relay-netpoll      [.] net.spliceTo
+     0.01%  relay-netpoll  relay-netpoll      [.] net.sysSocket
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*_panic).start
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*gcCPULimiterState).updateLocked
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*gcControllerState).trigger
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*gcWork).putObj
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*itabTableType).find
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*lfstack).push
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mSpanList).insert
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mcache).refill
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mcentral).uncacheSpan
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mheap).allocManual
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mheap).freeSpanLocked
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*mspan).nextFreeIndex
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).allocRange
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageAlloc).findMappedAddr
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*pageCache).alloc
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*scavChunkData).free
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*scavengeIndex).alloc
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*sysMemStat).add
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.(*unwinder).finishInternal
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.AddCleanup[go.shape.struct { internal/poll.splicePipeFields; internal/poll.cleanup runtime.Cleanup },go.shape.struct { internal/poll.rfd int; internal/poll.wfd int; internal/poll.data int }].func1
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.SetFinalizer.func1
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.acquireSudog
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.chansend
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.convT64
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.copystack
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.deductSweepCredit
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.duffzero
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.exitsyscall0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.gcAssistAlloc1
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.gcBgMarkWorker
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.gcTrigger.test
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.goexit0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.makeslice
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.mallocgcTiny
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.mergeSummaries
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.morestack.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.netpollopen
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.newstack
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.park_m
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.pollFractionalWorkerExit
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.procresize
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.resumeG
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.runqputslow
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.scanstack
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.selectnbrecv
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.setg.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.sigtrampgo
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.spanOfHeap
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.sysUsedOS
+     0.01%  relay-netpoll  relay-netpoll      [.] runtime.wbBufFlush.abi0
+     0.01%  relay-netpoll  relay-netpoll      [.] sync.(*Pool).Put
+     0.01%  relay-netpoll  relay-netpoll      [.] sync.(*Pool).getSlow
+     0.01%  relay-netpoll  relay-netpoll      [.] sync.(*poolChain).popHead
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.(*SockaddrInet4).sockaddr
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.Accept4
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.Getsockname
+     0.01%  relay-netpoll  relay-netpoll      [.] syscall.read
+     0.01%  relay-netpoll  relay-netpoll      [.] time.(*Time).addSec
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#
