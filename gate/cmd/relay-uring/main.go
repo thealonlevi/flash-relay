@@ -250,6 +250,34 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 	var nextID uint64
 	efdBuf := make([]byte, 8)
 
+	// Per-worker conn freelist: recycle conn structs + their reqBuf/respBuf instead
+	// of allocating (make zeroes both buffers) and GCing one set per connection on
+	// the churn hot path. The worker ring loop is single-goroutine, so no locking.
+	// Conn ids are never reused (nextID is monotonic), so a stale completion landing
+	// on a recycled struct can't alias — the map lookup for the freed id returns nil.
+	// Gated to the non-duplex path: duplex/splice can have several ops in flight per
+	// conn whose error completions may arrive after the close, so recycling there is
+	// unsafe; the scored churn workload is non-duplex anyway.
+	var connFree []*conn
+	getConn := func() *conn {
+		if !c.duplex {
+			if n := len(connFree); n > 0 {
+				cc := connFree[n-1]
+				connFree = connFree[:n-1]
+				return cc
+			}
+		}
+		return &conn{reqBuf: make([]byte, c.reqLen), respBuf: make([]byte, c.replyLen)}
+	}
+	putConn := func(cc *conn) {
+		if c.duplex {
+			return
+		}
+		rb, sb := cc.reqBuf, cc.respBuf
+		*cc = conn{reqBuf: rb, respBuf: sb} // reset all state, keep the byte buffers
+		connFree = append(connFree, cc)
+	}
+
 	post := func(prep func(*uring.SQE)) {
 		for {
 			if s := ring.GetSQE(); s != nil {
@@ -285,6 +313,7 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		}
 		if cc.closesLeft == 0 {
 			delete(conns, cc.id)
+			putConn(cc)
 		}
 	}
 
@@ -331,7 +360,9 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 					break
 				}
 				nextID++
-				cc := &conn{id: nextID, clientFD: int(res), reqBuf: make([]byte, c.reqLen), respBuf: make([]byte, c.replyLen)}
+				cc := getConn()
+				cc.id = nextID
+				cc.clientFD = int(res)
 				conns[cc.id] = cc
 				ncid := cc.id
 				post(func(s *uring.SQE) { uring.PrepRecv(s, cc.clientFD, cc.reqBuf, ud(ncid, opRecvReq)) })
@@ -594,6 +625,7 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 				cc.closesLeft--
 				if cc.closesLeft <= 0 {
 					delete(conns, cid)
+					putConn(cc)
 				}
 
 			case opTimeout:
