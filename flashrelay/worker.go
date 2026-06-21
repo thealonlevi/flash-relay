@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -92,17 +93,26 @@ type hookResult struct {
 }
 
 type bridge struct {
-	mu    sync.Mutex
-	ready []hookResult
-	efd   int
+	mu       sync.Mutex
+	ready    []hookResult
+	efd      int
+	notified atomic.Int32 // 1 = an eventfd wake is already outstanding (coalesces writes)
 }
 
 func (b *bridge) push(r hookResult) {
 	b.mu.Lock()
 	b.ready = append(b.ready, r)
 	b.mu.Unlock()
-	var one uint64 = 1
-	syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:])
+	// Coalesce wakeups: only write the eventfd if no wake is already pending. The
+	// outstanding eventfd CQE drains everything appended since (the consumer clears
+	// the flag before draining, so a push after the clear re-arms and nothing is
+	// lost), collapsing concurrent hook completions into one write syscall per ring
+	// drain instead of one per connection — a per-conn syscall cut under churn.
+	// (Found by the optimizer on the gate SUT; ported here. See research/optimizer.)
+	if b.notified.Swap(1) == 0 {
+		var one uint64 = 1
+		syscall.Write(b.efd, (*[8]byte)(unsafe.Pointer(&one))[:])
+	}
 }
 
 func (b *bridge) drain() []hookResult {
@@ -247,6 +257,9 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 
 			case opEventfd:
 				postEventfd()
+				// Clear the wake flag BEFORE draining: any push appended after this
+				// store re-arms the eventfd, so no completion can be lost.
+				br.notified.Store(0)
 				for _, r := range br.drain() {
 					cc := conns[r.id]
 					if cc == nil { // conn gone (shed/closed) — clean up the adopted fd
