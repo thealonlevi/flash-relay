@@ -22,11 +22,15 @@ yet built** — so you can check it against your own stack rather than take our 
     workload; **~2× less RSS per held connection**.
   - On a **connect-flood** (93% junk, like your incident), the CPU profile **inverts** from
     runtime/syscall overhead to the kernel's irreducible TCP work (kernel share 58% → 85%).
-- **Not yet measured / not built:** the incident's headline **~20% scheduler thrash is a
-  *multi-core* phenomenon** (600k goroutines on Go's shared run-queues across 40 cores). Our
-  single-core gate **cannot reproduce that**, and multi-ring flash-relay (one ring/core)
-  isn't built yet. **This is flash-relay's biggest expected win and it is currently
-  unmeasured.** See "How to verify on your stack."
+- **Multi-core (now built + measured):** multi-ring flash-relay (one shared-nothing io_uring
+  ring per core via `SO_REUSEPORT`) vs N-core netpoll, 6 cores, connect-flood. At equal
+  throughput flash-relay used **~31% less CPU (1.45× more conn/s per core-used)** and shed the
+  scheduler/netpoller/syscall overhead the netpoller carries. **But** the loopback single-box
+  loadgen can't *saturate* the cores (~21–27k conn/s ceiling), so the incident's *dramatic
+  super-linear scheduler collapse at saturation* is still **not** forced — that needs a real
+  multi-box NIC at scale. Also flagged: at this scale flash-relay shows *higher* kernel lock
+  contention (7.6% vs 4.3%, likely the `SO_REUSEPORT` accept path on loopback) — worth
+  watching as you scale cores.
 - **Maturity:** flash-relay is at the **kill-gate stage** — the mechanism is proven, not the
   product. It is not production-hardened (see "What's still to build").
 
@@ -154,12 +158,17 @@ Run these on the **40c/80q box**, ideally with a real NIC and a second load box 
 `gate/harness/DEPLOY-LOADGEN.md` for the 2-box setup). The harnesses pin to one core and emit
 the same profile breakdown shown above, so you can compare your hardware's ratios to ours.
 
-**Step C — the measurement that actually hits your incident (needs a build step).**
-The single-core gate can't show the cross-core scheduler collapse. To measure *that*, we need
-**multi-ring flash-relay** (one io_uring ring per core via `SO_REUSEPORT`) compared against
-N-core riptide/netpoll under high concurrency + churn on your 40-core box. Multi-ring isn't
-built yet (it's the next milestone). This is the test that would put a real number on the
-incident's ~20%+ scheduler thrash. **Recommend we build it and run it on your box.**
+**Step C — the multi-core test (now built — run it on your 40-core box).**
+Multi-ring flash-relay is built: `relay-uring -workers N -startcore 0` runs N shared-nothing
+io_uring rings, one per core, via `SO_REUSEPORT`. `gate/harness/multicore.sh` runs it vs
+N-core netpoll under a cross-core flood and profiles scheduler + lock contention. On our box
+(6 cores, loopback) it showed ~31% less CPU at equal throughput — but **we could not saturate
+the cores** (loopback loadgen caps ~21–27k conn/s; the public-IP path is throttled). **On your
+40-core box with real NICs and a real load source**, run `multicore.sh` (or point a real
+loadgen at `relay-uring -workers 40`) and push past saturation — that is where the netpoller's
+shared-scheduler collapse (your incident's ~20%) appears and flash-relay's per-core design
+should pull away. This is the single most incident-relevant number, and only your hardware can
+produce it. Watch flash-relay's kernel lock-contention line as cores scale (see TL;DR).
 
 **Step D — estimate the win.** CPU reduction ≈ (your overhead fraction from Step A that
 flash-relay eliminates) + the per-conn instruction savings (~1.4× on steady traffic). Memory
@@ -182,8 +191,11 @@ goroutine stacks). Both should be **larger** in your prod than our loopback numb
 - riptide **dials upstream itself** with a blocking raw syscall (so the upstream fd never
   hits the netpoller) and hands the connected fd to flash-relay to adopt + relay.
 
-**Not yet built (Step 4 — required before production):** multi-ring/per-core scaling
-(`SO_REUSEPORT`), registered/direct descriptors at 100k+ (the fd-table sizing for your
+**Built since (prototype):** multi-ring/per-core scaling (`SO_REUSEPORT`, `-workers N` +
+core affinity) — works and measured (above), though the kernel lock-contention at scale and
+a bounded-batch accept (single-shot currently paces establishment) want more work.
+
+**Not yet built (Step 4 — required before production):** registered/direct descriptors at 100k+ (the fd-table sizing for your
 concurrency — each conn holds 2 fds), clean drain / zero-downtime `SO_REUSEPORT` handoff,
 IPv6 + bind-specific-IP, idle timeouts, per-direction byte counters for datacap/metrics, and
 the full B3–B9 benchmark suite (throughput/Gbps, NUMA scaling, tail-latency-vs-load,
