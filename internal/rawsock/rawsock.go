@@ -75,7 +75,16 @@ func (l *Listener) Close() error { return syscall.Close(l.FD) }
 // connected fd. The blocking connect parks the calling goroutine's OS thread via
 // the Go scheduler — it does NOT touch the netpoller. This is how riptide dials
 // upstream (and how the gate's decision hook dials the sink). See DESIGN.md §3.2.
-func Dial(ip string, port int) (int, error) {
+func Dial(ip string, port int) (int, error) { return DialMark(ip, port, 0) }
+
+// soMark is SO_SOCKET-level SO_MARK (not exported by syscall on all arches).
+const soMark = 36
+
+// DialMark is Dial, but if mark > 0 it sets SO_MARK on the socket before connect.
+// The mark rides every packet from this connection as skb->mark, which the
+// fingerprint tc-egress eBPF reads to pick a per-connection TCP/IP fingerprint
+// (see fingerprint/). Setting SO_MARK needs CAP_NET_ADMIN. mark 0 = no mark.
+func DialMark(ip string, port, mark int) (int, error) {
 	sa, family, err := resolve(ip, port)
 	if err != nil {
 		return -1, err
@@ -83,6 +92,12 @@ func Dial(ip string, port int) (int, error) {
 	fd, err := syscall.Socket(family, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	if err != nil {
 		return -1, fmt.Errorf("socket: %w", err)
+	}
+	if mark > 0 {
+		if err := syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, soMark, mark); err != nil {
+			syscall.Close(fd)
+			return -1, fmt.Errorf("SO_MARK: %w", err)
+		}
 	}
 	if err := syscall.Connect(fd, sa); err != nil {
 		syscall.Close(fd)

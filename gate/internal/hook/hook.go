@@ -45,6 +45,7 @@ type Config struct {
 	Delay    DelayFunc     // ms-scale async dial park (NoDelay for headline)
 	SinkIP   string        // upstream sink address
 	SinkPort int
+	Mark     int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
 }
 
 // Spin burns d of CPU time in a busy-loop (it must compete for the core, so it
@@ -68,5 +69,5 @@ func (c Config) Decide() (int, error) {
 			time.Sleep(d) // parks THIS goroutine (off-ring), not the ring worker
 		}
 	}
-	return rawsock.Dial(c.SinkIP, c.SinkPort)
+	return rawsock.DialMark(c.SinkIP, c.SinkPort, c.Mark)
 }

@@ -26,6 +26,9 @@ Use p0f -i lo as oracle; target p0f.fp sigs so match-by-construction.
 
 ## STATUS
 - [x] #1 (done + finding)
-- [ ] #2 profile-driven eBPF (Windows/Android in-place/no-op; macOS resize)
-- [ ] #3 SO_MARK + hook
-- [ ] #4 p0f per-profile validation
+- [x] #2 Windows profile (eBPF, in-place 20B) ; Android = sockopt-only (no eBPF) ; [ ] macOS resize (skb_change_tail)
+- [x] #3 SO_MARK per-conn selection: eBPF switches on skb->mark; rawsock.DialMark + hook.Mark + SUT -fpmark + flashrelay.DialFingerprint
+- [~] #4 p0f: rewrite confirmed (Windows opts+ttl via tcpdump/p0f raw_sig). FULL OS-LABEL match needs window+wscale which need real MSS (loopback MSS 65495 can't produce win 8192) -> real-NIC item.
+
+## Benchmark conclusion (3 variants: rewrite-all/direct-access/mark-based)
+All ~same: churn +3.6-3.9% instr/conn, throughput ~0% (within noise). Cost = per-packet tc-egress DISPATCH (hook invoked per egress packet), NOT program logic/rewrite. Intrinsic to tc-egress. Only lever: flower SYN-prefilter (marginal) or sock_ops (can't reorder opts). Throughput unaffected because few big packets amortize dispatch.

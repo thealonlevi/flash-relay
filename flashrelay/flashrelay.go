@@ -174,6 +174,15 @@ func (s *Server) Stop() { s.stop.Store(true) }
 // custom dial may produce the fd themselves (any connected SOCK_STREAM fd works).
 func Dial(host string, port int) (int, error) { return rawsock.Dial(host, port) }
 
+// DialFingerprint is Dial but tags the upstream socket with SO_MARK = profile, so
+// the fingerprint tc-egress eBPF (see fingerprint/) rewrites this connection's SYN
+// to the matching OS TCP/IP fingerprint (e.g. 1 = Windows). A Hook can call this
+// to give each upstream the fingerprint that matches the client it's serving.
+// profile 0 behaves exactly like Dial. Requires the eBPF attached + CAP_NET_ADMIN.
+func DialFingerprint(host string, port, profile int) (int, error) {
+	return rawsock.DialMark(host, port, profile)
+}
+
 // Stat returns a snapshot of the engine's counters.
 func (s *Server) Stat() Stats {
 	return Stats{

@@ -154,6 +154,7 @@ type relayCfg struct {
 	splice            bool
 	bufSize, maxConns int
 	acceptBatch       int
+	fpMark            int
 }
 
 func main() {
@@ -178,6 +179,7 @@ func main() {
 	acceptBatch := flag.Int("acceptbatch", 64, "accepts kept in flight per worker (bounded parallelism: throughput without flooding the CQ)")
 	workers := flag.Int("workers", 1, "number of shared-nothing per-core ring workers (SO_REUSEPORT)")
 	startCore := flag.Int("startcore", -1, "pin worker i to core startcore+i (-1 = no pinning)")
+	fpMark := flag.Int("fpmark", 0, "SO_MARK to set on upstream dials (TCP fingerprint profile for the fingerprint/ tc-egress eBPF; 0=none, 1=Windows)")
 	flag.Parse()
 
 	delay := hook.NoDelay()
@@ -188,7 +190,7 @@ func main() {
 		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort,
 		reqLen: *reqLen, replyLen: *replyLen, authCPU: *authCPU, delay: delay,
 		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex, splice: *splice,
-		bufSize: *bufSize, maxConns: *maxConns, acceptBatch: *acceptBatch,
+		bufSize: *bufSize, maxConns: *maxConns, acceptBatch: *acceptBatch, fpMark: *fpMark,
 	}
 
 	if *statsFile != "" {
@@ -229,7 +231,7 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		log.Fatalf("worker %d eventfd2: %v", id, errno)
 	}
 	br := &bridge{efd: int(efd)}
-	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort}
+	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort, Mark: c.fpMark}
 	jobs := make(chan uint64, 1<<16)
 	for i := 0; i < c.hookWorkers; i++ {
 		go func() {

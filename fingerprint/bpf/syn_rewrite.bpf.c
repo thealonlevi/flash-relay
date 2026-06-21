@@ -28,9 +28,22 @@
 #define TC_ACT_OK 0
 #define NEW_TTL 128
 
+// Profile selector: the relay sets SO_MARK on its upstream socket, so the SYN
+// carries skb->mark and we pick the fingerprint per connection. Unmarked traffic
+// (client-side, loadgen, sink) returns on the very first instruction below — so
+// only the relay's deliberately-marked outbound conns pay any classify cost.
+#define FP_NONE    0
+#define FP_WINDOWS 1
+#define FP_MACOS   2 // option-set length change (24B) — see TODO, not yet in eBPF
+#define FP_ANDROID 3 // same option layout as Linux — handled by sockopt, not eBPF
+
 SEC("tc")
 int syn_rewrite(struct __sk_buff *skb)
 {
+	__u32 fp = skb->mark;
+	if (fp != FP_WINDOWS)
+		return TC_ACT_OK; // only the Windows option-layout profile rewrites here
+
 	// --- CHEAP CLASSIFY (runs on every egress packet): direct reads bounded by
 	// data_end, NO pull_data. Non-SYN packets early-return here paying only a few
 	// bounded byte reads — so the bulk data plane is untouched. pull_data (which
