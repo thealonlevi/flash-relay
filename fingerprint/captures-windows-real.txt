@@ -1,0 +1,2 @@
+07:13:03.552490 eth0  In  IP (tos 0x0, ttl 120, id 25535, offset 0, flags [DF], proto TCP (6), length 52)
+    198.51.100.12.61859 > 203.0.113.10.80: Flags [S], cksum 0x247d (correct), seq 3152308019, win 65535, options [mss 1440,nop,wscale 8,nop,nop,sackOK], length 0

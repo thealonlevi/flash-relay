@@ -182,7 +182,7 @@ const (
 	FPWindows = 1 // TTL128, mss,nop,ws,nop,nop,sok (no TS); wscale 8
 	FPMacOS   = 2 // TTL64,  mss,nop,ws,nop,nop,ts,sok,eol;   wscale 6 (real-capture-matched)
 	FPAndroid = 3 // TTL64,  mss,sok,ts,nop,ws (== Linux);    wscale 8
-	FPiOS     = 4 // TTL64,  == macOS layout;                 wscale 7
+	FPiOS     = 4 // TTL64,  == macOS (real capture: same layout AND wscale 6); +ECN, +tos 0x50
 )
 
 // fpProfile is the (eBPF option-layout mark, SO_RCVBUF) pair for a profile.
@@ -193,7 +193,7 @@ var fpProfiles = map[int]fpProfile{
 	FPWindows: {mark: 1, rcvbuf: 8 << 20}, // wscale 8
 	FPMacOS:   {mark: 2, rcvbuf: 2 << 20}, // wscale 6
 	FPAndroid: {mark: 3, rcvbuf: 8 << 20}, // mark 3 = eBPF passthrough (layout==Linux); wscale 8
-	FPiOS:     {mark: 2, rcvbuf: 4 << 20}, // macOS layout, wscale 7
+	FPiOS:     {mark: 2, rcvbuf: 2 << 20}, // == macOS (real capture: wscale 6); ECN/tos via deploy sysctl/sockopt
 }
 
 // DialFingerprint dials upstream and shapes the SYN to a chosen OS TCP/IP
