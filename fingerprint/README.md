@@ -11,6 +11,11 @@ forwarded untouched, so the destination sees the *client's* TLS fingerprint. For
 believable spoof, pick the TCP profile to match the OS the client's TLS/HTTP
 fingerprint claims (select it per-connection in the relay's hook).
 
+> **Intended use.** This is infrastructure for legitimate proxy/egress products (the
+> relay's own outbound connections) and for authorized fingerprinting research. It only
+> shapes packets the operator's own host originates; it is not a tool for impersonating
+> or attacking third parties. Use it where you control the egress and have authorization.
+
 ## How it works
 
 A tc-egress eBPF program (`bpf/syn_rewrite.bpf.c`) runs on the egress interface.

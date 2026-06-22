@@ -1,0 +1,22 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: build + vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      - name: go build
+        run: CGO_ENABLED=0 go build ./...
+      - name: go vet
+        run: CGO_ENABLED=0 go vet ./...
+      - name: gofmt
+        run: test -z "$(gofmt -l flashrelay/ internal/ examples/)"

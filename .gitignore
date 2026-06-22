@@ -39,7 +39,7 @@ research/gate/results/**/*.data
 research/gate/results/**/*.load.json
 
 # local Claude Code settings (never commit — machine/run-specific)
-.claude/settings.local.json
+.claude/
 
 # optimizer fast-validation override (never committed)
 research/optimizer/config.local

@@ -1,5 +1,6 @@
 # flash-relay
 
+[![CI](https://github.com/thealonlevi/flash-relay/actions/workflows/ci.yml/badge.svg)](https://github.com/thealonlevi/flash-relay/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Go 1.25+](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
 [![Platform: linux/amd64](https://img.shields.io/badge/platform-linux%2Famd64-555.svg)](#install)
