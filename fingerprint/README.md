@@ -47,7 +47,7 @@ eBPF layout/TTL + SO_RCVBUF for the wscale). All validated on loopback (✅).
 | **Windows 10/11** | 1 | 128 | `mss,nop,ws,nop,nop,sok` (12B, **no TS**) | 8 | reorder + **shrink −8** ✅ |
 | **macOS** 13–15 | 2 | 64 | `mss,nop,ws,nop,nop,ts,sok,eol` (24B) | 6 | reorder + **grow +4** ✅ |
 | **Android** 10–14 | 3 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 8 | **none** (sockopt only) ✅ |
-| **iOS** 16/17 | 4 | 64 | == macOS layout (eBPF mark 2) | 7 | (reuses macOS) ✅ |
+| **iOS** (iPhone 17 Pro Max) | 4 | 64 | == macOS layout (eBPF mark 2) | 6 | (reuses macOS) ✅ |
 
 macOS is matched against a **live Mac capture** (`captures-macos-real.txt`). **Key:**
 TTL + option *order/set* are forged by the eBPF (cosmetic); **window + wscale are
