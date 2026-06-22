@@ -1,0 +1,5 @@
+# Real Android capture — 198.51.100.11 (mobile/cellular, VPN off), path /android, srcport 34748
+# decoded: TTL64, win65535, wscale9, opts mss,sok,ts,nop,ws (== Linux/Android layout), tos 0x28
+    198.51.100.11.34748 > 203.0.113.10.80: Flags [S], cksum 0x14c0 (correct), seq 231627592, win 65535, options [mss 1400,sackOK,TS val 3672888251 ecr 0,nop,wscale 9], length 0
+    198.51.100.11.34750 > 203.0.113.10.80: Flags [S], cksum 0x0e31 (correct), seq 3008478253, win 65535, options [mss 1400,sackOK,TS val 3672888287 ecr 0,nop,wscale 9], length 0
+    198.51.100.11.34764 > 203.0.113.10.80: Flags [S], cksum 0xe712 (correct), seq 2789993096, win 65535, options [mss 1400,sackOK,TS val 3672889754 ecr 0,nop,wscale 9], length 0

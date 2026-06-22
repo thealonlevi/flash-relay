@@ -46,13 +46,13 @@ eBPF layout/TTL + SO_RCVBUF for the wscale). All validated on loopback (✅).
 | Linux (relay's real stack) | 0 | 64 | `mss,sok,ts,nop,ws` (20B) | 7 | — |
 | **Windows 10/11** | 1 | 128 | `mss,nop,ws,nop,nop,sok` (12B, **no TS**) | 8 | reorder + **shrink −8** ✅ |
 | **macOS** 13–15 | 2 | 64 | `mss,nop,ws,nop,nop,ts,sok,eol` (24B) | 6 | reorder + **grow +4** ✅ |
-| **Android** 10–14 | 3 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 8 | **none** (sockopt only) ✅ |
+| **Android** 10–14 | 3 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 9 | **none** (sockopt only) ✅ |
 | **iOS** (iPhone 17 Pro Max) | 4 | 64 | == macOS layout (eBPF mark 2) | 6 | (reuses macOS) ✅ |
 
 macOS is matched against a **live Mac capture** (`captures-macos-real.txt`). **Key:**
 TTL + option *order/set* are forged by the eBPF (cosmetic); **window + wscale are
 functional** and come from `SO_RCVBUF` (the kernel derives them) — needs
-`net.core.rmem_max` raised (≥16 MiB): 2M→wscale 6, 4M→7, 8M→8. Android needs no eBPF
+`net.core.rmem_max` raised (≥16 MiB): 2M→wscale 6, 4M→7, 8M→8, 16M→9. Android needs no eBPF
 (layout == Linux). The MSS is left as the relay's real path MSS (path-dependent, not
 an OS tell). Full p0f/JA4T OS-*label* confirmation needs a real NIC (loopback MSS
 65495 distorts the window).

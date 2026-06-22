@@ -51,7 +51,7 @@ echo "=== fingerprint profile validation on $IFACE ==="
 check 1 8388608 128 8 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,sackOK\]'              "Windows 10/11"
 check 2 2097152 64  6 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,TS.*sackOK,eol\]'      "macOS"
 check 2 2097152 64  6 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,TS.*sackOK,eol\]'      "iOS (real iPhone 17 Pro Max == macOS: wscale 6)"
-check 3 8388608 64  8 'mss [0-9]+,sackOK,TS.*nop,wscale [0-9]+\]'                  "Android"
+check 3 16777216 64  9 'mss [0-9]+,sackOK,TS.*nop,wscale [0-9]+\]'                 "Android (real device == Linux layout: wscale 9)"
 echo "=============================================="
 [ "$FAILED" = 0 ] && echo "ALL PROFILES PASS" || { echo "SOME PROFILES FAILED"; exit 1; }
 echo

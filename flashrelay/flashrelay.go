@@ -181,19 +181,19 @@ func Dial(host string, port int) (int, error) { return rawsock.Dial(host, port) 
 const (
 	FPWindows = 1 // TTL128, mss,nop,ws,nop,nop,sok (no TS); wscale 8
 	FPMacOS   = 2 // TTL64,  mss,nop,ws,nop,nop,ts,sok,eol;   wscale 6 (real-capture-matched)
-	FPAndroid = 3 // TTL64,  mss,sok,ts,nop,ws (== Linux);    wscale 8
+	FPAndroid = 3 // TTL64,  mss,sok,ts,nop,ws (== Linux);    wscale 9 (real-capture-matched)
 	FPiOS     = 4 // TTL64,  == macOS (real capture: same layout AND wscale 6); +ECN, +tos 0x50
 )
 
 // fpProfile is the (eBPF option-layout mark, SO_RCVBUF) pair for a profile.
 type fpProfile struct{ mark, rcvbuf int }
 
-// rcvbuf->wscale on a host with net.core.rmem_max raised (~16 MiB): 2M->6, 4M->7, 8M->8.
+// rcvbuf->wscale on a host with net.core.rmem_max raised: 2M->6, 4M->7, 8M->8, 16M->9.
 var fpProfiles = map[int]fpProfile{
-	FPWindows: {mark: 1, rcvbuf: 8 << 20}, // wscale 8
-	FPMacOS:   {mark: 2, rcvbuf: 2 << 20}, // wscale 6
-	FPAndroid: {mark: 3, rcvbuf: 8 << 20}, // mark 3 = eBPF passthrough (layout==Linux); wscale 8
-	FPiOS:     {mark: 2, rcvbuf: 2 << 20}, // == macOS (real capture: wscale 6); ECN/tos via deploy sysctl/sockopt
+	FPWindows: {mark: 1, rcvbuf: 8 << 20},  // wscale 8
+	FPMacOS:   {mark: 2, rcvbuf: 2 << 20},  // wscale 6
+	FPAndroid: {mark: 3, rcvbuf: 16 << 20}, // mark 3 = eBPF passthrough (layout==Linux); wscale 9 (needs rmem_max>=16M)
+	FPiOS:     {mark: 2, rcvbuf: 2 << 20},  // == macOS (real capture: wscale 6); ECN/tos via deploy sysctl/sockopt
 }
 
 // DialFingerprint dials upstream and shapes the SYN to a chosen OS TCP/IP

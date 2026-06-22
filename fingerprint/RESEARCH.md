@@ -19,7 +19,7 @@ functional and OS-chosen. JA4T = `window_options_mss_wscale`.
 | **macOS** 13/14/15 | 64 | `mss,nop,ws,nop,nop,ts,sok,eol` | 24 | **6** ✔real | 65535 ✔real |
 | **iOS** 16/17 | 64 | `mss,nop,ws,nop,nop,ts,sok,eol` (== macOS; ends in EOL) | 24 | ~6–7 | 65535 |
 | **Windows** 10/11 | 128 | `mss,nop,ws,nop,nop,sok` (**no timestamps**) | 12 | 8 | 64240 / 65535 |
-| **Android** 10–14 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 20 | 8–9 | 65535 |
+| **Android** 10–14 | 64 | `mss,sok,ts,nop,ws` (**== Linux**) | 20 | **9** ✔real | 65535 ✔real |
 | Linux (our relay) | 64 | `mss,sok,ts,nop,ws` | 20 | 7 | (varies) |
 
 Confirmed distinguishers from the sources: **Windows omits TCP timestamps** (opt 8);
@@ -56,8 +56,8 @@ Confirmed distinguishers from the sources: **Windows omits TCP timestamps** (opt
 |---|---|---|---|---|
 | macOS | 2 | reorder + **grow** 20→24 | 6 (2 MiB) | ✅ done, ✔real-validated |
 | Windows 10/11 | 1 | reorder + **shrink** 20→12 (drop TS) | 8 (8 MiB) | ⏳ replacing old in-place Win7/8 |
-| Android | 3 | **none** (layout == Linux) | 8 (8 MiB) | ⏳ sockopt-only |
-| iOS | 4 | == macOS eBPF (mark 2 layout) | ~7 | ⏳ macOS eBPF + iOS wscale |
+| Android | 3 | **none** (layout == Linux) | 9 (16 MiB) | ✅ done, ✔real-validated |
+| iOS | 4 | == macOS eBPF (mark 2 layout) | 6 (2 MiB) | ✅ done, ✔real (iPhone 17 Pro Max) |
 
 Caveats: wscale/window values vary by OS *build* — the table uses common modern
 values; real-device captures (like the macOS one) pin them exactly. Full p0f/JA4T
@@ -67,6 +67,7 @@ OS-label confirmation needs a **real NIC** (loopback MSS 65495 distorts window).
 ## Real-device captures (provenance)
 - **macOS** — MacBook **M4 Pro** (2025, latest macOS): TTL64, win65535, **wscale 6**, `mss,nop,ws,nop,nop,ts,sok,eol`, plain SYN.
 - **iOS** — iPhone **17 Pro Max** (2025, latest iOS): identical layout + **wscale 6** (research had guessed 7), PLUS **ECN** (SYN ECE+CWR) and **tos 0x50** (DSCP). So on current Apple hardware iOS == macOS at the option layer; iOS additionally requests ECN (a deploy sysctl: net.ipv4.tcp_ecn) and marks DSCP (IP_TOS sockopt). Both off-by-default on our relay.
+- **Android** — real cellular device (198.51.100.11, VPN off): TTL64, win65535, **wscale 9** (research had guessed 8), `mss,sok,ts,nop,ws` == Linux layout (so NO eBPF needed — sockopt-only). tos 0x28.
 - **Windows 10/11** (real, via the device's network): TTL128, win65535, wscale 8, `mss,nop,ws,nop,nop,sok` (no TS) — matches FPWindows exactly.
 
 ## Sources
