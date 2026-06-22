@@ -63,6 +63,12 @@ Caveats: wscale/window values vary by OS *build* — the table uses common moder
 values; real-device captures (like the macOS one) pin them exactly. Full p0f/JA4T
 OS-label confirmation needs a **real NIC** (loopback MSS 65495 distorts window).
 
+
+## Real-device captures (provenance)
+- **macOS** — MacBook **M4 Pro** (2025, latest macOS): TTL64, win65535, **wscale 6**, `mss,nop,ws,nop,nop,ts,sok,eol`, plain SYN.
+- **iOS** — iPhone **17 Pro Max** (2025, latest iOS): identical layout + **wscale 6** (research had guessed 7), PLUS **ECN** (SYN ECE+CWR) and **tos 0x50** (DSCP). So on current Apple hardware iOS == macOS at the option layer; iOS additionally requests ECN (a deploy sysctl: net.ipv4.tcp_ecn) and marks DSCP (IP_TOS sockopt). Both off-by-default on our relay.
+- **Windows 10/11** (real, via the device's network): TTL128, win65535, wscale 8, `mss,nop,ws,nop,nop,sok` (no TS) — matches FPWindows exactly.
+
 ## Sources
 - FoxIO JA4T — https://blog.foxio.io/ja4t-tcp-fingerprinting (Windows no-TS; iOS EOL; format)
 - pydoll network-fingerprinting — https://pydoll.tech/docs/deep-dive/fingerprinting/network-fingerprinting/ (per-OS p0f sigs)

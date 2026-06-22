@@ -1,3 +1,5 @@
+# Real macOS capture — MacBook M4 Pro (2025), latest macOS, iCloud Private Relay off
+# decoded: TTL64, win65535, wscale6, opts mss,nop,ws,nop,nop,ts,sok,eol; Flags [S] (no ECN observed on this path)
 20:28:00.440403 eth0  In  IP (tos 0x0, ttl 56, id 0, offset 0, flags [DF], proto TCP (6), length 64)
     198.51.100.10.65068 > 203.0.113.10.18000: Flags [S], cksum 0x0cfa (correct), seq 3858838128, win 65535, options [mss 1360,nop,wscale 6,nop,nop,TS val 2624402416 ecr 0,sackOK,eol], length 0
 20:28:01.526079 eth0  In  IP (tos 0x0, ttl 56, id 0, offset 0, flags [DF], proto TCP (6), length 64)

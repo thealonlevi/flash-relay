@@ -1,2 +1,4 @@
+# Real iOS capture — iPhone 17 Pro Max (2025), latest iOS, iCloud Private Relay off
+# decoded: TTL64, win65535, wscale6, opts mss,nop,ws,nop,nop,ts,sok,eol == macOS; Flags [SEW] (ECN: ECE+CWR), tos 0x50 (DSCP)
     198.51.100.13.20870 > 203.0.113.10.80: Flags [SEW], cksum 0xd318 (correct), seq 4173582273, win 65535, options [mss 1360,nop,wscale 6,nop,nop,TS val 3912829020 ecr 0,sackOK,eol], length 0
 07:52:27.974277 eth0  In  IP (tos 0x48, ttl 114, id 25100, offset 0, flags [DF], proto TCP (6), length 52)
