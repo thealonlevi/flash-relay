@@ -185,26 +185,30 @@ const (
 	FPiOS     = 4 // TTL64,  == macOS (real capture: same layout AND wscale 6); +ECN, +tos 0x50
 )
 
-// fpProfile is the (eBPF option-layout mark, SO_RCVBUF) pair for a profile.
-type fpProfile struct{ mark, rcvbuf int }
+// fpProfile is the (eBPF option-layout mark, SO_RCVBUF, IP TOS byte) tuple for a
+// profile. tos is the per-socket DiffServ+ECN byte (real header field, not forged).
+type fpProfile struct{ mark, rcvbuf, tos int }
 
 // rcvbuf->wscale on a host with net.core.rmem_max raised: 2M->6, 4M->7, 8M->8, 16M->9.
+// iOS adds tos 0x50 (real capture); its ECN SYN bits come from net.ipv4.tcp_ecn=1 (deploy).
 var fpProfiles = map[int]fpProfile{
-	FPWindows: {mark: 1, rcvbuf: 8 << 20},  // wscale 8
-	FPMacOS:   {mark: 2, rcvbuf: 2 << 20},  // wscale 6
-	FPAndroid: {mark: 3, rcvbuf: 16 << 20}, // mark 3 = eBPF passthrough (layout==Linux); wscale 9 (needs rmem_max>=16M)
-	FPiOS:     {mark: 2, rcvbuf: 2 << 20},  // == macOS (real capture: wscale 6); ECN/tos via deploy sysctl/sockopt
+	FPWindows: {mark: 1, rcvbuf: 8 << 20},            // wscale 8
+	FPMacOS:   {mark: 2, rcvbuf: 2 << 20},            // wscale 6
+	FPAndroid: {mark: 3, rcvbuf: 16 << 20},           // mark 3 = eBPF passthrough (layout==Linux); wscale 9 (needs rmem_max>=16M)
+	FPiOS:     {mark: 2, rcvbuf: 2 << 20, tos: 0x50}, // == macOS (wscale 6) + iOS DSCP 0x50; ECN via tcp_ecn=1
 }
 
 // DialFingerprint dials upstream and shapes the SYN to a chosen OS TCP/IP
 // fingerprint: SO_MARK selects the eBPF option-layout/TTL rewrite (fingerprint/),
-// and SO_RCVBUF makes the kernel emit the profile's window scale. A Hook calls this
-// to give each upstream the fingerprint matching the client it serves. profile 0 ==
-// plain Dial. Requires the eBPF attached + CAP_NET_ADMIN; full wscale/window fidelity
-// needs net.core.rmem_max raised and a real NIC (loopback MSS distorts the window).
+// SO_RCVBUF makes the kernel emit the profile's window scale, and IP_TOS sets the
+// DiffServ/ECN byte (e.g. iOS 0x50). A Hook calls this to give each upstream the
+// fingerprint matching the client it serves. profile 0 == plain Dial. Requires the
+// eBPF attached + CAP_NET_ADMIN; full wscale/window fidelity needs net.core.rmem_max
+// raised and a real NIC (loopback MSS distorts the window). The Apple ECN SYN bits
+// (iOS [SEW]) are real ECN negotiation — enable with sysctl net.ipv4.tcp_ecn=1.
 func DialFingerprint(host string, port, profile int) (int, error) {
 	p := fpProfiles[profile]
-	return rawsock.DialFP(host, port, p.mark, p.rcvbuf)
+	return rawsock.DialFP(host, port, p.mark, p.rcvbuf, p.tos)
 }
 
 // Stat returns a snapshot of the engine's counters.

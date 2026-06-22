@@ -62,7 +62,13 @@ an OS tell). Full p0f/JA4T OS-*label* confirmation needs a real NIC (loopback MS
 1. `clang`/`libbpf-dev`/`iproute2` to build; `CAP_NET_ADMIN` to attach + set SO_MARK.
 2. Attach the eBPF on the egress interface (`tc ... egress bpf da obj ... sec tc`).
 3. `sysctl -w net.core.rmem_max=16777216` (so SO_RCVBUF can reach the target wscales).
-4. The relay's hook returns the profile id; `DialFingerprint` does the rest.
+4. `sysctl -w net.ipv4.tcp_ecn=1` so the Apple profiles request **real ECN** (the iOS
+   `[SEW]` SYN bits). This is genuine ECN negotiation, not forged flags — but it is a
+   **global** toggle: every outbound SYN becomes ECN-capable. That's within all modern
+   OSes' real behavior (Win11/Android/macOS all support ECN; it's path-variable), so it
+   doesn't make the other profiles implausible. iOS's DSCP (`tos 0x50`) is per-socket
+   (`IP_TOS`), set automatically by `DialFingerprint`.
+5. The relay's hook returns the profile id; `DialFingerprint` does the rest.
 
 ## Status & benchmark
 

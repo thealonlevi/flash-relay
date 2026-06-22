@@ -12,17 +12,22 @@ OBJ="bpf/syn_rewrite.bpf.o"
 [ -f "$OBJ" ] || { echo "build first: ./build.sh"; exit 1; }
 
 sysctl -w net.core.rmem_max=16777216 >/dev/null 2>&1 || true
+# Enable real ECN so the Apple profiles request it (iOS [SEW] SYN bits); restore on exit.
+OLD_ECN=$(cat /proc/sys/net/ipv4/tcp_ecn 2>/dev/null || echo 2)
+sysctl -w net.ipv4.tcp_ecn=1 >/dev/null 2>&1 || true
 tc qdisc del dev "$IFACE" clsact 2>/dev/null
 tc qdisc add dev "$IFACE" clsact
 tc filter add dev "$IFACE" egress bpf da obj "$OBJ" sec tc 2>/dev/null \
   || { echo "attach failed"; exit 1; }
-trap 'tc qdisc del dev "$IFACE" clsact 2>/dev/null' EXIT
+trap 'tc qdisc del dev "$IFACE" clsact 2>/dev/null; sysctl -w net.ipv4.tcp_ecn=$OLD_ECN >/dev/null 2>&1' EXIT
 
 freeport(){ python3 -c "import socket;s=socket.socket();s.bind(('127.0.0.1',0));print(s.getsockname()[1]);s.close()"; }
 
-# check <mark> <rcvbuf> <want_ttl> <want_wscale> <want_opt_regex> <label>
+# check <mark> <rcvbuf> <want_ttl> <want_wscale> <want_opt_regex> <label> [tos]
+# When tos>0 (iOS), set IP_TOS on the connect and additionally assert the DSCP byte
+# (tos 0x50) and the ECN-setup SYN flags ([SEW]) are present.
 check(){
-  local mark=$1 rcvbuf=$2 ttl=$3 ws=$4 re=$5 label=$6
+  local mark=$1 rcvbuf=$2 ttl=$3 ws=$4 re=$5 label=$6 tos=${7:-0}
   local P; P=$(freeport)
   python3 -c "import socket;s=socket.socket();s.setsockopt(1,2,1);s.bind(('127.0.0.1',$P));s.listen(16);import time;time.sleep(10)" & local L=$!; sleep 0.5
   rm -f /tmp/v.txt
@@ -34,6 +39,7 @@ import socket,time
 for _ in range(4):
     s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_MARK,$mark)
     if $rcvbuf>0: s.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,$rcvbuf)
+    if $tos>0: s.setsockopt(socket.IPPROTO_IP,socket.IP_TOS,$tos)
     try: s.settimeout(2); s.connect(('127.0.0.1',$P))
     except: pass
     s.close(); time.sleep(0.1)" 2>/dev/null
@@ -43,6 +49,10 @@ for _ in range(4):
   echo "$line" | grep -q "ttl $ttl" || { ok=0; why="$why ttl(want $ttl)"; }
   echo "$line" | grep -qE "wscale $ws" || { ok=0; why="$why wscale(want $ws)"; }
   echo "$line" | grep -qE "$re" || { ok=0; why="$why opts(want /$re/)"; }
+  if [ "$tos" -gt 0 ]; then
+    printf '0x%02x' "$tos" | { read -r h; echo "$line" | grep -q "tos $h" || { ok=0; why="$why tos(want $h)"; }; }
+    echo "$line" | grep -q "Flags \[SEW\]" || { ok=0; why="$why ecn(want [SEW])"; }
+  fi
   if [ "$ok" = 1 ]; then echo "  PASS  $label"; else echo "  FAIL  $label —$why"; FAILED=1; fi
 }
 
@@ -50,7 +60,7 @@ FAILED=0
 echo "=== fingerprint profile validation on $IFACE ==="
 check 1 8388608 128 8 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,sackOK\]'              "Windows 10/11"
 check 2 2097152 64  6 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,TS.*sackOK,eol\]'      "macOS"
-check 2 2097152 64  6 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,TS.*sackOK,eol\]'      "iOS (real iPhone 17 Pro Max == macOS: wscale 6)"
+check 2 2097152 64  6 'mss [0-9]+,nop,wscale [0-9]+,nop,nop,TS.*sackOK,eol\]'      "iOS (iPhone 17 Pro Max: macOS layout + DSCP 0x50 + ECN [SEW])" 80
 check 3 16777216 64  9 'mss [0-9]+,sackOK,TS.*nop,wscale [0-9]+\]'                 "Android (real device == Linux layout: wscale 9)"
 echo "=============================================="
 [ "$FAILED" = 0 ] && echo "ALL PROFILES PASS" || { echo "SOME PROFILES FAILED"; exit 1; }

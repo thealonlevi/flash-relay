@@ -75,13 +75,13 @@ func (l *Listener) Close() error { return syscall.Close(l.FD) }
 // connected fd. The blocking connect parks the calling goroutine's OS thread via
 // the Go scheduler — it does NOT touch the netpoller. This is how riptide dials
 // upstream (and how the gate's decision hook dials the sink). See DESIGN.md §3.2.
-func Dial(ip string, port int) (int, error)           { return DialFP(ip, port, 0, 0) }
-func DialMark(ip string, port, mark int) (int, error) { return DialFP(ip, port, mark, 0) }
+func Dial(ip string, port int) (int, error)           { return DialFP(ip, port, 0, 0, 0) }
+func DialMark(ip string, port, mark int) (int, error) { return DialFP(ip, port, mark, 0, 0) }
 
 // soMark is SO_SOCKET-level SO_MARK (not exported by syscall on all arches).
 const soMark = 36
 
-// DialFP is Dial plus the two knobs the TCP-fingerprint feature needs, set before
+// DialFP is Dial plus the three knobs the TCP-fingerprint feature needs, set before
 // connect so they shape the SYN (see fingerprint/):
 //   - mark>0   : SO_MARK — rides the connection as skb->mark; the tc-egress eBPF
 //     reads it to pick the OS option-layout + TTL profile.
@@ -89,9 +89,11 @@ const soMark = 36
 //     window) from it, so this sets the *functional* wscale/window that
 //     can't be forged in-packet. Hitting high wscales needs
 //     net.core.rmem_max raised (e.g. 16 MiB). 0 = leave default.
+//   - tos>0    : IP_TOS / IPV6_TCLASS — the IP DiffServ+ECN byte (e.g. iOS sends
+//     0x50). Real per-socket header field, not forged. 0 = leave default.
 //
-// Both need CAP_NET_ADMIN (mark). 0/0 == plain Dial.
-func DialFP(ip string, port, mark, rcvbuf int) (int, error) {
+// mark needs CAP_NET_ADMIN. 0/0/0 == plain Dial.
+func DialFP(ip string, port, mark, rcvbuf, tos int) (int, error) {
 	sa, family, err := resolve(ip, port)
 	if err != nil {
 		return -1, err
@@ -109,6 +111,14 @@ func DialFP(ip string, port, mark, rcvbuf int) (int, error) {
 	if rcvbuf > 0 {
 		// best-effort: clamped to net.core.rmem_max; a too-low rmem_max caps wscale.
 		_ = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, rcvbuf)
+	}
+	if tos > 0 {
+		// best-effort DSCP/ECN byte: IP_TOS for v4, IPV6_TCLASS for v6.
+		if family == syscall.AF_INET6 {
+			_ = syscall.SetsockoptInt(fd, syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, tos)
+		} else {
+			_ = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_TOS, tos)
+		}
 	}
 	if err := syscall.Connect(fd, sa); err != nil {
 		syscall.Close(fd)
