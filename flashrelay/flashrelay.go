@@ -174,28 +174,31 @@ func (s *Server) Stop() { s.stop.Store(true) }
 // custom dial may produce the fd themselves (any connected SOCK_STREAM fd works).
 func Dial(host string, port int) (int, error) { return rawsock.Dial(host, port) }
 
-// Fingerprint profile ids (modern OSes). Each maps to an eBPF option-layout mark +
-// an SO_RCVBUF that makes the kernel emit the profile's window scale. iOS reuses the
-// macOS option layout (eBPF mark 2) with a different wscale. Android needs no eBPF
-// (its layout == Linux); it's wscale-only. See fingerprint/RESEARCH.md.
+// Fingerprint profile ids (modern OSes). Each maps to an eBPF mark (selects the
+// per-packet TTL+IP-ID profile and the SYN option-layout) + an SO_RCVBUF that makes
+// the kernel emit the profile's window scale. The eBPF rewrites TTL+IP-ID on EVERY
+// packet (coherent across the whole flow) and the option layout on the SYN. macOS
+// (mark 2) and iOS (mark 4) share the option layout but differ on IP ID (macOS=0,
+// iOS=random), hence distinct marks. See fingerprint/RESEARCH.md.
 const (
-	FPWindows = 1 // TTL128, mss,nop,ws,nop,nop,sok (no TS); wscale 8
-	FPMacOS   = 2 // TTL64,  mss,nop,ws,nop,nop,ts,sok,eol;   wscale 6 (real-capture-matched)
-	FPAndroid = 3 // TTL64,  mss,sok,ts,nop,ws (== Linux);    wscale 9 (real-capture-matched)
-	FPiOS     = 4 // TTL64,  == macOS (real capture: same layout AND wscale 6); +ECN, +tos 0x50
+	FPWindows = 1 // TTL128, IPID incrementing, mss,nop,ws,nop,nop,sok (no TS); wscale 8
+	FPMacOS   = 2 // TTL64,  IPID 0,            mss,nop,ws,nop,nop,ts,sok,eol;   wscale 6
+	FPAndroid = 3 // TTL64,  IPID random,       mss,sok,ts,nop,ws (== Linux);    wscale 9
+	FPiOS     = 4 // TTL64,  IPID random,       == macOS layout;                 wscale 6; +ECN, +tos 0x50
 )
 
-// fpProfile is the (eBPF option-layout mark, SO_RCVBUF, IP TOS byte) tuple for a
-// profile. tos is the per-socket DiffServ+ECN byte (real header field, not forged).
+// fpProfile is the (eBPF mark, SO_RCVBUF, IP TOS byte) tuple for a profile. mark
+// selects the eBPF per-packet TTL/IP-ID + SYN option profile; tos is the per-socket
+// DiffServ+ECN byte (real header field, not forged).
 type fpProfile struct{ mark, rcvbuf, tos int }
 
 // rcvbuf->wscale on a host with net.core.rmem_max raised: 2M->6, 4M->7, 8M->8, 16M->9.
 // iOS adds tos 0x50 (real capture); its ECN SYN bits come from net.ipv4.tcp_ecn=1 (deploy).
 var fpProfiles = map[int]fpProfile{
-	FPWindows: {mark: 1, rcvbuf: 8 << 20},            // wscale 8
-	FPMacOS:   {mark: 2, rcvbuf: 2 << 20},            // wscale 6
-	FPAndroid: {mark: 3, rcvbuf: 16 << 20},           // mark 3 = eBPF passthrough (layout==Linux); wscale 9 (needs rmem_max>=16M)
-	FPiOS:     {mark: 2, rcvbuf: 2 << 20, tos: 0x50}, // == macOS (wscale 6) + iOS DSCP 0x50; ECN via tcp_ecn=1
+	FPWindows: {mark: 1, rcvbuf: 8 << 20},            // TTL128, IPID keep, wscale 8
+	FPMacOS:   {mark: 2, rcvbuf: 2 << 20},            // TTL64, IPID 0, wscale 6
+	FPAndroid: {mark: 3, rcvbuf: 16 << 20},           // TTL64, IPID random, layout==Linux; wscale 9 (needs rmem_max>=16M)
+	FPiOS:     {mark: 4, rcvbuf: 2 << 20, tos: 0x50}, // TTL64, IPID random, macOS layout, wscale 6 + DSCP 0x50; ECN via tcp_ecn=1
 }
 
 // DialFingerprint dials upstream and shapes the SYN to a chosen OS TCP/IP
