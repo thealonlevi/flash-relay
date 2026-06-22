@@ -2,7 +2,7 @@
 
 // Package uring is a minimal, hand-rolled io_uring binding for the flash-relay
 // gate — pure Go, CGO_ENABLED=0, no third-party dependency. We own the ring so
-// the auto-optimizer can mutate the hot path (RELAY_PLAN.md substrate decision),
+// the auto-optimizer can mutate the hot path (the hand-rolled-ring substrate decision),
 // and so no data-plane fd can be contaminated by a library that secretly touches
 // the Go netpoller.
 //

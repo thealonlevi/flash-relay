@@ -173,7 +173,7 @@ path without a number.
 Gate ✅ **GO** (dev-grade): B1 epoll-elimination is conclusive on this rig; B2 is the
 dev-grade ratio. The importable library is built and tested; the fingerprint feature is
 built, validated, and benchmarked. Measurement-grade absolutes (and the B3–B9 suite)
-need real hardware. See [`RELAY_PLAN.md`](RELAY_PLAN.md) (plan of record),
+need real hardware. See [`research/`](research/) (the rig that found it),
 [`research/gate/DESIGN.md`](research/gate/DESIGN.md) (measurement contract), and
 [`docs/RIPTIDE-HANDOFF.md`](docs/RIPTIDE-HANDOFF.md) (honest handoff with caveats).
 

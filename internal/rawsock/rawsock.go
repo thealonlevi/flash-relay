@@ -4,7 +4,7 @@
 // never the net package. This is the non-negotiable of flash-relay: a data-plane
 // fd that goes through net.Conn/os.File gets registered with the Go netpoller
 // (epoll), which is exactly what B1 proves we eliminate. Raw syscall.Socket fds
-// are never registered with the runtime poller. See gate/DESIGN.md and CLAUDE.md.
+// are never registered with the runtime poller. See research/gate/DESIGN.md.
 package rawsock
 
 import (

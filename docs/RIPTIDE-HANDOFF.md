@@ -255,8 +255,8 @@ class of "the benchmark flattered itself" trap the anti-fooling rules (§intro) 
 ## 7. Where the code and evidence live
 
 - Repo: `github.com/thealonlevi/flash-relay`, branch **`main`** (library + fixed relay + all
-  harnesses + results). `RELAY_PLAN.md` is the full plan; `research/gate/DESIGN.md` is the measurement
-  contract; `research/gate/results/` holds the raw run outputs (`SUMMARY.md`, `RESULT.txt`, perf
+  harnesses + results). `research/gate/DESIGN.md` is the measurement contract;
+  `research/gate/results/` holds the raw run outputs (`SUMMARY.md`, `RESULT.txt`, perf
   reports).
 - Key dirs: `flashrelay/` (the importable library — API + per-core engine), `examples/echo-relay`
   (minimal embedding), `internal/uring` (the hand-rolled ring: accept/recv/send/close/timeout/splice),

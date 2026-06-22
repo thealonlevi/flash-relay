@@ -1,8 +1,7 @@
 # gate — the B1+B2 kill-gate
 
-Does the io_uring relay mechanism even work? This directory answers it before we
-build the full library (RELAY_PLAN.md, gate-first). Design contract:
-[`DESIGN.md`](DESIGN.md).
+Does the io_uring relay mechanism even work? This directory answers it (gate-first)
+before building the full library. Design contract: [`DESIGN.md`](DESIGN.md).
 
 ## Build
 
