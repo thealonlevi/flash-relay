@@ -1,0 +1,1168 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 284  of event 'cpu-clock'
+# Event count (approx.): 284854556
+#
+# Overhead  Command      Shared Object      Symbol                                       
+# ........  ...........  .................  .............................................
+#
+    20.07%  relay-uring  [kernel.kallsyms]  [k] finish_task_switch.isra.0
+            |
+            ---finish_task_switch.isra.0
+               __schedule
+               schedule
+               |          
+               |--9.15%--futex_wait_queue
+               |          __futex_wait
+               |          futex_wait
+               |          do_futex
+               |          __x64_sys_futex
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          runtime.futex.abi0
+               |          |          
+               |          |--7.39%--runtime.notesleep
+               |          |          runtime.stopm
+               |          |          runtime.findRunnable
+               |          |          runtime.schedule
+               |          |          runtime.park_m
+               |          |          runtime.mcall
+               |          |          
+               |           --1.76%--runtime.notetsleep_internal
+               |                     runtime.notetsleep
+               |                     runtime.sysmon
+               |                     runtime.mstart1
+               |                     runtime.mstart0
+               |                     runtime.mstart.abi0
+               |                     runtime.futexsleep
+               |                     0x244c8b48e4894c08
+               |          
+               |--4.93%--io_cqring_wait
+               |          __do_sys_io_uring_enter
+               |          __x64_sys_io_uring_enter
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          internal/runtime/syscall.Syscall6
+               |          syscall.Syscall6
+               |          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               |          main.main
+               |          runtime.main
+               |          runtime.goexit.abi0
+               |          
+               |--4.58%--do_nanosleep
+               |          hrtimer_nanosleep
+               |          __x64_sys_nanosleep
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          runtime.usleep.abi0
+               |          runtime.sysmon
+               |          runtime.mstart1
+               |          runtime.mstart0
+               |          runtime.mstart.abi0
+               |          runtime.futexsleep
+               |          0x244c8b48e4894c08
+               |          
+                --1.41%--syscall_exit_to_user_mode
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          runtime.futex.abi0
+                          runtime.notewakeup
+                          runtime.startm
+                          runtime.handoffp
+                          runtime.retake
+                          runtime.sysmon
+                          runtime.mstart1
+                          runtime.mstart0
+                          runtime.mstart.abi0
+                          |          
+                          |--0.70%--runtime.futexsleep
+                          |          0x244c8b48e4894c08
+                          |          
+                           --0.70%--0x29cc9
+                                     0x244c8b48e4894c08
+
+    12.68%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
+            |
+            ---_raw_spin_unlock_irqrestore
+               |          
+               |--7.04%--__wake_up_sync_key
+               |          sock_def_readable
+               |          tcp_data_ready
+               |          |          
+               |          |--3.87%--tcp_data_queue
+               |          |          tcp_rcv_established
+               |          |          tcp_v4_do_rcv
+               |          |          tcp_v4_rcv
+               |          |          ip_protocol_deliver_rcu
+               |          |          ip_local_deliver_finish
+               |          |          ip_local_deliver
+               |          |          ip_rcv
+               |          |          __netif_receive_skb_one_core
+               |          |          __netif_receive_skb
+               |          |          process_backlog
+               |          |          __napi_poll
+               |          |          net_rx_action
+               |          |          handle_softirqs
+               |          |          __do_softirq
+               |          |          do_softirq.part.0
+               |          |          __local_bh_enable_ip
+               |          |          __dev_queue_xmit
+               |          |          neigh_hh_output
+               |          |          ip_finish_output2
+               |          |          __ip_finish_output
+               |          |          ip_finish_output
+               |          |          ip_output
+               |          |          ip_local_out
+               |          |          __ip_queue_xmit
+               |          |          ip_queue_xmit
+               |          |          __tcp_transmit_skb
+               |          |          tcp_write_xmit
+               |          |          __tcp_push_pending_frames
+               |          |          tcp_push
+               |          |          tcp_sendmsg_locked
+               |          |          tcp_sendmsg
+               |          |          inet_sendmsg
+               |          |          sock_sendmsg
+               |          |          io_send
+               |          |          io_issue_sqe
+               |          |          io_submit_sqes
+               |          |          __do_sys_io_uring_enter
+               |          |          __x64_sys_io_uring_enter
+               |          |          x64_sys_call
+               |          |          do_syscall_64
+               |          |          entry_SYSCALL_64_after_hwframe
+               |          |          internal/runtime/syscall.Syscall6
+               |          |          syscall.Syscall6
+               |          |          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               |          |          main.main
+               |          |          runtime.main
+               |          |          runtime.goexit.abi0
+               |          |          
+               |           --3.17%--tcp_rcv_established
+               |                     tcp_v4_do_rcv
+               |                     tcp_v4_rcv
+               |                     ip_protocol_deliver_rcu
+               |                     ip_local_deliver_finish
+               |                     ip_local_deliver
+               |                     ip_rcv
+               |                     __netif_receive_skb_one_core
+               |                     __netif_receive_skb
+               |                     process_backlog
+               |                     __napi_poll
+               |                     net_rx_action
+               |                     handle_softirqs
+               |                     __do_softirq
+               |                     do_softirq.part.0
+               |                     __local_bh_enable_ip
+               |                     __dev_queue_xmit
+               |                     neigh_hh_output
+               |                     ip_finish_output2
+               |                     __ip_finish_output
+               |                     ip_finish_output
+               |                     ip_output
+               |                     ip_local_out
+               |                     __ip_queue_xmit
+               |                     ip_queue_xmit
+               |                     __tcp_transmit_skb
+               |                     tcp_write_xmit
+               |                     __tcp_push_pending_frames
+               |                     tcp_push
+               |                     tcp_sendmsg_locked
+               |                     tcp_sendmsg
+               |                     inet_sendmsg
+               |                     sock_sendmsg
+               |                     io_send
+               |                     io_issue_sqe
+               |                     io_submit_sqes
+               |                     __do_sys_io_uring_enter
+               |                     __x64_sys_io_uring_enter
+               |                     x64_sys_call
+               |                     do_syscall_64
+               |                     entry_SYSCALL_64_after_hwframe
+               |                     internal/runtime/syscall.Syscall6
+               |                     syscall.Syscall6
+               |                     github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               |                     main.main
+               |                     runtime.main
+               |                     runtime.goexit.abi0
+               |          
+                --4.58%--try_to_wake_up
+                          wake_up_q
+                          futex_wake
+                          do_futex
+                          __x64_sys_futex
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          runtime.futex.abi0
+                          runtime.notewakeup
+                          |          
+                          |--2.46%--runtime.exitsyscallfast_pidle
+                          |          runtime.exitsyscallfast.func1
+                          |          runtime.systemstack.abi0
+                          |          runtime.exitsyscallfast
+                          |          runtime.exitsyscall
+                          |          syscall.Syscall6
+                          |          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+                          |          main.main
+                          |          runtime.main
+                          |          runtime.goexit.abi0
+                          |          
+                           --2.11%--runtime.startm
+                                     runtime.handoffp
+                                     runtime.retake
+                                     runtime.sysmon
+                                     runtime.mstart1
+                                     runtime.mstart0
+                                     runtime.mstart.abi0
+                                     runtime.futexsleep
+                                     0x244c8b48e4894c08
+
+     7.75%  relay-uring  [kernel.kallsyms]  [k] do_syscall_64
+            |
+            ---do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               |          
+               |--4.58%--runtime.futex.abi0
+               |          |          
+               |          |--3.17%--runtime.notewakeup
+               |          |          |          
+               |          |          |--1.76%--runtime.exitsyscallfast_pidle
+               |          |          |          runtime.exitsyscallfast.func1
+               |          |          |          runtime.systemstack.abi0
+               |          |          |          runtime.exitsyscallfast
+               |          |          |          runtime.exitsyscall
+               |          |          |          syscall.Syscall6
+               |          |          |          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               |          |          |          main.main
+               |          |          |          runtime.main
+               |          |          |          runtime.goexit.abi0
+               |          |          |          
+               |          |           --1.41%--runtime.startm
+               |          |                     runtime.handoffp
+               |          |                     runtime.retake
+               |          |                     runtime.sysmon
+               |          |                     runtime.mstart1
+               |          |                     runtime.mstart0
+               |          |                     runtime.mstart.abi0
+               |          |                     |          
+               |          |                      --0.70%--0x29cc7
+               |          |                                0x244c8b48e4894c08
+               |          |          
+               |           --1.06%--runtime.notetsleep_internal
+               |                     runtime.notetsleep
+               |                     runtime.sysmon
+               |                     runtime.mstart1
+               |                     runtime.mstart0
+               |                     runtime.mstart.abi0
+               |                     |          
+               |                      --0.70%--runtime.futexsleep
+               |                                0x244c8b48e4894c08
+               |          
+               |--1.76%--runtime.usleep.abi0
+               |          runtime.sysmon
+               |          runtime.mstart1
+               |          runtime.mstart0
+               |          runtime.mstart.abi0
+               |          |          
+               |          |--1.06%--runtime.futexsleep
+               |          |          0x244c8b48e4894c08
+               |          |          
+               |           --0.70%--0x29cc9
+               |                     0x244c8b48e4894c08
+               |          
+                --1.41%--internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+                          main.main
+                          runtime.main
+                          runtime.goexit.abi0
+
+     2.82%  relay-uring  relay-uring        [.] internal/runtime/syscall.Syscall6
+            |
+            ---internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     2.46%  relay-uring  relay-uring        [.] runtime.futex.abi0
+            |
+            ---runtime.futex.abi0
+               |          
+               |--1.06%--runtime.notesleep
+               |          runtime.stopm
+               |          runtime.findRunnable
+               |          runtime.schedule
+               |          runtime.park_m
+               |          runtime.mcall
+               |          
+                --1.06%--runtime.notewakeup
+                          |          
+                           --0.70%--runtime.startm
+                                     runtime.handoffp
+                                     runtime.retake
+                                     runtime.sysmon
+                                     runtime.mstart1
+                                     runtime.mstart0
+                                     runtime.mstart.abi0
+
+     1.76%  relay-uring  [kernel.kallsyms]  [k] __inet_lookup_established
+            |
+            ---__inet_lookup_established
+               |          
+                --1.41%--__inet_lookup_skb
+                          tcp_v4_rcv
+                          ip_protocol_deliver_rcu
+                          ip_local_deliver_finish
+                          ip_local_deliver
+                          ip_rcv
+                          __netif_receive_skb_one_core
+                          __netif_receive_skb
+                          process_backlog
+                          __napi_poll
+                          net_rx_action
+                          handle_softirqs
+                          __do_softirq
+                          do_softirq.part.0
+                          __local_bh_enable_ip
+                          __dev_queue_xmit
+                          neigh_hh_output
+                          ip_finish_output2
+                          __ip_finish_output
+                          ip_finish_output
+                          ip_output
+                          ip_local_out
+                          __ip_queue_xmit
+                          ip_queue_xmit
+                          __tcp_transmit_skb
+                          tcp_write_xmit
+                          __tcp_push_pending_frames
+                          tcp_push
+                          tcp_sendmsg_locked
+                          tcp_sendmsg
+                          inet_sendmsg
+                          sock_sendmsg
+                          io_send
+                          io_issue_sqe
+                          io_submit_sqes
+                          __do_sys_io_uring_enter
+                          __x64_sys_io_uring_enter
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+                          main.main
+                          runtime.main
+                          runtime.goexit.abi0
+
+     1.76%  relay-uring  relay-uring        [.] main.main
+            |
+            ---main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     1.41%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_lock_bh
+            |
+            ---_raw_spin_lock_bh
+               |          
+                --1.06%--tcp_sendmsg
+                          inet_sendmsg
+                          sock_sendmsg
+                          io_send
+                          io_issue_sqe
+                          io_submit_sqes
+                          __do_sys_io_uring_enter
+                          __x64_sys_io_uring_enter
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+                          main.main
+                          runtime.main
+                          runtime.goexit.abi0
+
+     1.41%  relay-uring  [kernel.kallsyms]  [k] tcp_check_space
+            |
+            ---tcp_check_space
+               |          
+                --1.06%--tcp_v4_do_rcv
+                          tcp_v4_rcv
+                          ip_protocol_deliver_rcu
+                          ip_local_deliver_finish
+                          ip_local_deliver
+                          ip_rcv
+                          __netif_receive_skb_one_core
+                          __netif_receive_skb
+                          process_backlog
+                          __napi_poll
+                          net_rx_action
+                          handle_softirqs
+                          __do_softirq
+                          do_softirq.part.0
+                          __local_bh_enable_ip
+                          __dev_queue_xmit
+                          neigh_hh_output
+                          ip_finish_output2
+                          __ip_finish_output
+                          ip_finish_output
+                          ip_output
+                          ip_local_out
+                          __ip_queue_xmit
+                          ip_queue_xmit
+                          __tcp_transmit_skb
+                          tcp_write_xmit
+                          __tcp_push_pending_frames
+                          tcp_push
+                          tcp_sendmsg_locked
+                          tcp_sendmsg
+                          inet_sendmsg
+                          sock_sendmsg
+                          io_send
+                          io_issue_sqe
+                          io_submit_sqes
+                          __do_sys_io_uring_enter
+                          __x64_sys_io_uring_enter
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+                          main.main
+                          runtime.main
+                          runtime.goexit.abi0
+
+     1.41%  relay-uring  relay-uring        [.] runtime.mapaccess1_fast64
+            |
+            ---runtime.mapaccess1_fast64
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     1.41%  relay-uring  relay-uring        [.] runtime.usleep.abi0
+            |
+            ---runtime.usleep.abi0
+               runtime.sysmon
+               runtime.mstart1
+               runtime.mstart0
+               runtime.mstart.abi0
+               |          
+                --1.06%--runtime.futexsleep
+                          0x244c8b48e4894c08
+
+     1.06%  relay-uring  [kernel.kallsyms]  [k] __x64_sys_futex
+            |
+            ---__x64_sys_futex
+               |          
+                --0.70%--x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          runtime.futex.abi0
+                          runtime.notetsleep_internal
+                          runtime.notetsleep
+                          runtime.sysmon
+                          runtime.mstart1
+                          runtime.mstart0
+                          runtime.mstart.abi0
+                          runtime.futexsleep
+                          0x244c8b48e4894c08
+
+     1.06%  relay-uring  [kernel.kallsyms]  [k] memset_orig
+            |
+            ---memset_orig
+               kmalloc_reserve
+               __alloc_skb
+               tcp_stream_alloc_skb
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     1.06%  relay-uring  [kernel.kallsyms]  [k] nft_do_chain
+            |
+            ---nft_do_chain
+               nft_do_chain_ipv4
+               nf_hook_slow
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     1.06%  relay-uring  [kernel.kallsyms]  [k] tcp_stream_memory_free
+            |
+            ---tcp_stream_memory_free
+               tcp_poll
+               sock_poll
+               __io_arm_poll_handler
+               io_arm_poll_handler
+               io_queue_async
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] __get_user_nocheck_4
+            |
+            ---__get_user_nocheck_4
+               futex_wait_setup
+               __futex_wait
+               futex_wait
+               do_futex
+               __x64_sys_futex
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               runtime.futex.abi0
+               runtime.notesleep
+               runtime.stopm
+               runtime.findRunnable
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] __ip_queue_xmit
+            |
+            ---__ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] aa_inet_msg_perm
+            |
+            ---aa_inet_msg_perm
+               apparmor_socket_sendmsg
+               security_socket_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] apparmor_socket_recvmsg
+            |
+            ---apparmor_socket_recvmsg
+               sock_recvmsg
+               io_recv
+               io_issue_sqe
+               io_req_task_submit
+               io_poll_task_func
+               tctx_task_work
+               task_work_run
+               io_run_task_work
+               io_cqring_wait
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] apparmor_socket_sendmsg
+            |
+            ---apparmor_socket_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] hrtimer_nanosleep
+            |
+            ---hrtimer_nanosleep
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] io_sendmsg_prep
+            |
+            ---io_sendmsg_prep
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] irqentry_exit_to_user_mode
+            |
+            ---irqentry_exit_to_user_mode
+               irqentry_exit
+               sysvec_reschedule_ipi
+               asm_sysvec_reschedule_ipi
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] kmem_cache_alloc_node
+            |
+            ---kmem_cache_alloc_node
+               kmalloc_reserve
+               __alloc_skb
+               tcp_stream_alloc_skb
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] kvm_clock_get_cycles
+            |
+            ---kvm_clock_get_cycles
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] net_rx_action
+            |
+            ---net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] netif_skb_features
+            |
+            ---netif_skb_features
+               validate_xmit_skb
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] rep_movs_alternative
+            |
+            ---rep_movs_alternative
+               simple_copy_to_iter
+               __skb_datagram_iter
+               skb_copy_datagram_iter
+               tcp_recvmsg_locked
+               tcp_recvmsg
+               inet_recvmsg
+               sock_recvmsg
+               io_recv
+               io_issue_sqe
+               io_req_task_submit
+               io_poll_task_func
+               tctx_task_work
+               task_work_run
+               io_run_task_work
+               io_cqring_wait
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] skb_attempt_defer_free
+            |
+            ---skb_attempt_defer_free
+               tcp_recvmsg_locked
+               tcp_recvmsg
+               inet_recvmsg
+               sock_recvmsg
+               io_recv
+               io_issue_sqe
+               io_req_task_submit
+               io_poll_task_func
+               tctx_task_work
+               task_work_run
+               io_run_task_work
+               io_cqring_wait
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] sock_from_file
+            |
+            ---sock_from_file
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] sock_recvmsg
+            |
+            ---sock_recvmsg
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_clean_rtx_queue.constprop.0
+            |
+            ---tcp_clean_rtx_queue.constprop.0
+               tcp_ack
+               tcp_rcv_established
+               tcp_v4_do_rcv
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_current_mss
+            |
+            ---tcp_current_mss
+               tcp_send_mss
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_event_data_recv
+            |
+            ---tcp_event_data_recv
+               tcp_data_queue
+               tcp_rcv_established
+               tcp_v4_do_rcv
+               tcp_v4_rcv
+               ip_protocol_deliver_rcu
+               ip_local_deliver_finish
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_event_new_data_sent
+            |
+            ---tcp_event_new_data_sent
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_queue_rcv
+            |
+            ---tcp_queue_rcv
+               tcp_rcv_established
+               tcp_v4_do_rcv
+               tcp_v4_rcv
+               ip_protocol_deliver_rcu
+               ip_local_deliver_finish
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_rcv_space_adjust
+            |
+            ---tcp_rcv_space_adjust
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_recvmsg_locked
+            |
+            ---tcp_recvmsg_locked
+               tcp_recvmsg
+               inet_recvmsg
+               sock_recvmsg
+               io_recv
+               io_issue_sqe
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_update_skb_after_send
+            |
+            ---tcp_update_skb_after_send
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_rcv
+            |
+            ---tcp_v4_rcv
+               ip_protocol_deliver_rcu
+               ip_local_deliver_finish
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               io_send
+               io_issue_sqe
+               io_submit_sqes
+               __do_sys_io_uring_enter
+               __x64_sys_io_uring_enter
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+               main.main
+               runtime.main
+               runtime.goexit.abi0
+
+     0.70%  relay-uring  [kernel.kallsyms]  [k] x64_sys_call
+            |
+            ---x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+
+     0.70%  relay-uring  [vdso]             [.] 0x0000000000000c6a
+            |
+            ---0x7ffc80bf9c6a
+               runtime.nanotime1.abi0
+
+     0.70%  relay-uring  relay-uring        [.] runtime.(*m).clearAllpSnapshot
+            |
+            ---runtime.(*m).clearAllpSnapshot
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __copy_skb_header
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __io_queue_proc
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __io_submit_flush_completions
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __memset
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __mod_timer
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __netif_receive_skb_core.constprop.0
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __netif_receive_skb_one_core
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __raw_callee_save___pv_queued_spin_unlock
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __skb_datagram_iter
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __tcp_transmit_skb
+     0.35%  relay-uring  [kernel.kallsyms]  [k] __virt_addr_valid
+     0.35%  relay-uring  [kernel.kallsyms]  [k] _copy_from_iter
+     0.35%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
+     0.35%  relay-uring  [kernel.kallsyms]  [k] apparmor_ip_postroute
+     0.35%  relay-uring  [kernel.kallsyms]  [k] begin_current_label_crit_section
+     0.35%  relay-uring  [kernel.kallsyms]  [k] check_heap_object
+     0.35%  relay-uring  [kernel.kallsyms]  [k] cubictcp_cong_avoid
+     0.35%  relay-uring  [kernel.kallsyms]  [k] cubictcp_cwnd_event
+     0.35%  relay-uring  [kernel.kallsyms]  [k] do_futex
+     0.35%  relay-uring  [kernel.kallsyms]  [k] do_nanosleep
+     0.35%  relay-uring  [kernel.kallsyms]  [k] fget
+     0.35%  relay-uring  [kernel.kallsyms]  [k] fput
+     0.35%  relay-uring  [kernel.kallsyms]  [k] futex_hash
+     0.35%  relay-uring  [kernel.kallsyms]  [k] futex_wake
+     0.35%  relay-uring  [kernel.kallsyms]  [k] io_issue_sqe
+     0.35%  relay-uring  [kernel.kallsyms]  [k] io_run_task_work
+     0.35%  relay-uring  [kernel.kallsyms]  [k] ipv4_dst_check
+     0.35%  relay-uring  [kernel.kallsyms]  [k] kfree_skbmem
+     0.35%  relay-uring  [kernel.kallsyms]  [k] ktime_get
+     0.35%  relay-uring  [kernel.kallsyms]  [k] loopback_xmit
+     0.35%  relay-uring  [kernel.kallsyms]  [k] mod_memcg_state
+     0.35%  relay-uring  [kernel.kallsyms]  [k] nf_hook_slow
+     0.35%  relay-uring  [kernel.kallsyms]  [k] plist_add
+     0.35%  relay-uring  [kernel.kallsyms]  [k] pvclock_clocksource_read_nowd
+     0.35%  relay-uring  [kernel.kallsyms]  [k] release_sock
+     0.35%  relay-uring  [kernel.kallsyms]  [k] security_socket_recvmsg
+     0.35%  relay-uring  [kernel.kallsyms]  [k] skb_network_protocol
+     0.35%  relay-uring  [kernel.kallsyms]  [k] slab_update_freelist.isra.0
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_push
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_recvmsg
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_rtt_estimator
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_sendmsg
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_sendmsg_locked
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_do_rcv
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_send_check
+     0.35%  relay-uring  [kernel.kallsyms]  [k] tcp_wfree
+     0.35%  relay-uring  [kernel.kallsyms]  [k] try_to_wake_up
+     0.35%  relay-uring  relay-uring        [.] runtime.acquirep
+     0.35%  relay-uring  relay-uring        [.] runtime.casgstatus
+     0.35%  relay-uring  relay-uring        [.] runtime.exitsyscall
+     0.35%  relay-uring  relay-uring        [.] runtime.exitsyscallfast.func1
+     0.35%  relay-uring  relay-uring        [.] runtime.exitsyscallfast_pidle
+     0.35%  relay-uring  relay-uring        [.] runtime.lock2
+     0.35%  relay-uring  relay-uring        [.] runtime.mput
+     0.35%  relay-uring  relay-uring        [.] runtime.nanotime1.abi0
+     0.35%  relay-uring  relay-uring        [.] runtime.notetsleep_internal
+     0.35%  relay-uring  relay-uring        [.] runtime.osyield.abi0
+     0.35%  relay-uring  relay-uring        [.] runtime.reentersyscall
+     0.35%  relay-uring  relay-uring        [.] runtime.startm
+     0.35%  relay-uring  relay-uring        [.] runtime.unlock2
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

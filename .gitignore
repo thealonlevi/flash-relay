@@ -11,10 +11,10 @@
 # anchored paths ignore the BINARY only — never the source dir / main.go.
 # (Bug history: a broad `/gate/**/loadgen` here silently swallowed the
 # gate/cmd/loadgen SOURCE directory so it never got committed.)
-/gate/cmd/sink/sink
-/gate/cmd/loadgen/loadgen
-/gate/cmd/relay-uring/relay-uring
-/gate/cmd/relay-netpoll/relay-netpoll
+/research/gate/cmd/sink/sink
+/research/gate/cmd/loadgen/loadgen
+/research/gate/cmd/relay-uring/relay-uring
+/research/gate/cmd/relay-netpoll/relay-netpoll
 
 # profiling / measurement output
 *.perf
@@ -23,9 +23,9 @@ perf.data*
 *.svg
 # Keep curated gate results (SUMMARY.md, metrics.csv, env.txt, *_report.txt,
 # b1 files) but never the bulky perf binaries or per-rep raw dumps.
-gate/results/**/*.perfdata
-gate/results/**/*_load_*.json
-gate/results/**/*_perf_*.csv
+research/gate/results/**/*.perfdata
+research/gate/results/**/*_load_*.json
+research/gate/results/**/*_perf_*.csv
 
 # editor / OS
 .idea/
@@ -34,12 +34,12 @@ gate/results/**/*_perf_*.csv
 .DS_Store
 
 # optimizer runtime state (champion, logs, history) — not committed
-optimizer/results/
-gate/results/**/*.data
-gate/results/**/*.load.json
+research/optimizer/results/
+research/gate/results/**/*.data
+research/gate/results/**/*.load.json
 
 # local Claude Code settings (never commit — machine/run-specific)
 .claude/settings.local.json
 
 # optimizer fast-validation override (never committed)
-optimizer/config.local
+research/optimizer/config.local

@@ -1,0 +1,7 @@
+2026/06/21 07:49:30 relay-uring (SUT) on 127.0.0.1:22000 -> sink 127.0.0.1:22100 (authcpu=5µs realistic=false hookworkers=256)
+2026/06/21 07:49:32 uring accepted=501 completed=0 shed=0 errs=0 live=501
+2026/06/21 07:49:34 uring accepted=1500 completed=0 shed=0 errs=0 live=1500
+2026/06/21 07:49:36 uring accepted=2000 completed=0 shed=0 errs=0 live=2000
+2026/06/21 07:49:38 uring accepted=2000 completed=0 shed=0 errs=0 live=2000
+2026/06/21 07:49:40 uring accepted=2000 completed=0 shed=0 errs=0 live=2000
+2026/06/21 07:49:42 uring accepted=2000 completed=0 shed=0 errs=0 live=2000

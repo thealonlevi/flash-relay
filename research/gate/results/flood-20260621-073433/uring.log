@@ -1,0 +1,13 @@
+2026/06/21 07:35:04 relay-uring (SUT) on 127.0.0.1:21000 -> sink 127.0.0.1:21100 (authcpu=5µs realistic=false hookworkers=256)
+2026/06/21 07:35:06 uring accepted=38846 completed=2540 shed=0 errs=34513 live=1794
+2026/06/21 07:35:08 uring accepted=104524 completed=7278 shed=0 errs=95485 live=1762
+2026/06/21 07:35:10 uring accepted=170131 completed=11868 shed=0 errs=156450 live=1813
+2026/06/21 07:35:12 uring accepted=237077 completed=16529 shed=0 errs=218881 live=1667
+2026/06/21 07:35:14 uring accepted=301381 completed=21171 shed=0 errs=279750 live=461
+2026/06/21 07:35:16 uring accepted=368030 completed=25756 shed=0 errs=340558 live=1716
+2026/06/21 07:35:18 uring accepted=433397 completed=30271 shed=0 errs=401393 live=1733
+2026/06/21 07:35:20 uring accepted=498873 completed=34871 shed=0 errs=462227 live=1775
+2026/06/21 07:35:22 uring accepted=564350 completed=39401 shed=0 errs=523110 live=1839
+2026/06/21 07:35:24 uring accepted=629671 completed=43927 shed=0 errs=584041 live=1703
+2026/06/21 07:35:26 uring accepted=694835 completed=48429 shed=0 errs=644943 live=1465
+2026/06/21 07:35:28 uring accepted=760714 completed=53059 shed=0 errs=705838 live=1817

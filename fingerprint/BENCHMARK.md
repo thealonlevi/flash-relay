@@ -1,7 +1,7 @@
 # Fingerprint feature benchmark
 
 Measured the TCP-fingerprint feature's per-connection cost through the **project
-referee** (`optimizer/score.sh`): the io_uring relay pinned to one core, an upstream
+referee** (`research/optimizer/score.sh`): the io_uring relay pinned to one core, an upstream
 sink on another, a loadgen storm on four more, scoring **instructions per connection**
 (frequency-independent — riptide's exact question) with anti-cheat gates that also
 prove the relay still **correctly relays under load** (upstream actually dialed,

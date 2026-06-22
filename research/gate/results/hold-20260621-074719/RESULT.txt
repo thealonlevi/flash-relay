@@ -1,0 +1,28 @@
+HELD-CONNECTION TEST  N=2000  ramp=4s hold=10s  1 core (loopback)  2026-06-21T07:47:21Z
+memAvail before: 25598.9 MB
+
+>>> netpoll : holding N=2000
+   established ~0 conns, relay RSS 33536KB; measuring 4s...
+   live=1  relay RSS=33 MB  -> RSS/conn=33536.0 KB  CPU=0.092 cores
+   CPU profile (self%):
+     Go scheduler thrash            8.2%  ####
+     GC (scan goroutine stacks)     0.4%  
+     netpoller/epoll                2.7%  #
+     syscall transition            16.9%  ########
+     io_uring                       0.0%  
+     kernel TCP/net                62.1%  ###############################
+     relay's own code               9.0%  ####
+     other                          0.4%  
+
+>>> uring : holding N=2000
+   established ~0 conns, relay RSS 22784KB; measuring 4s...
+   live=1  relay RSS=22 MB  -> RSS/conn=22784.0 KB  CPU=0.105 cores
+   CPU profile (self%):
+     Go scheduler thrash            5.3%  ##
+     GC (scan goroutine stacks)     0.0%  
+     netpoller/epoll                0.0%  
+     syscall transition            12.0%  #####
+     io_uring                       0.0%  
+     kernel TCP/net                74.1%  #####################################
+     relay's own code               7.7%  ###
+     other                          0.7%  

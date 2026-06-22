@@ -1,0 +1,10 @@
+   live=2,000  relay RSS=22 MB  -> RSS/conn=11.4 KB  CPU=0.092 cores
+   CPU profile (self%):
+     Go scheduler thrash            8.7%  ####
+     GC (scan goroutine stacks)     0.0%  
+     netpoller/epoll                0.0%  
+     syscall transition             7.2%  ###
+     io_uring                       0.0%  
+     kernel TCP/net                76.7%  ######################################
+     relay's own code               6.4%  ###
+     other                          1.2%  

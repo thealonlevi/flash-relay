@@ -150,17 +150,17 @@ flash-relay's value is high; if your CPU is actually in proxy logic or kernel TC
 git clone git@github.com:thealonlevi/flash-relay.git
 cd flash-relay && git checkout optimizer-run     # has the fixed relay + all harnesses
 CGO_ENABLED=0 go build ./...                      # pure Go, no cgo
-sudo bash gate/harness/gate.sh                    # B1 + per-core instr/conn vs netpoll
-sudo RPORT=<free> SPORT=<free> bash gate/harness/flood.sh   # 93%-junk connect-flood CPU profile
-sudo bash gate/harness/hold.sh                    # held-connection RSS/conn + profile
+sudo bash research/gate/harness/gate.sh                    # B1 + per-core instr/conn vs netpoll
+sudo RPORT=<free> SPORT=<free> bash research/gate/harness/flood.sh   # 93%-junk connect-flood CPU profile
+sudo bash research/gate/harness/hold.sh                    # held-connection RSS/conn + profile
 ```
 Run these on the **40c/80q box**, ideally with a real NIC and a second load box (see
-`gate/harness/DEPLOY-LOADGEN.md` for the 2-box setup). The harnesses pin to one core and emit
+`research/gate/harness/DEPLOY-LOADGEN.md` for the 2-box setup). The harnesses pin to one core and emit
 the same profile breakdown shown above, so you can compare your hardware's ratios to ours.
 
 **Step C — the multi-core test (now built — run it on your 40-core box).**
 Multi-ring flash-relay is built: `relay-uring -workers N -startcore 0` runs N shared-nothing
-io_uring rings, one per core, via `SO_REUSEPORT`. `gate/harness/multicore.sh` runs it vs
+io_uring rings, one per core, via `SO_REUSEPORT`. `research/gate/harness/multicore.sh` runs it vs
 N-core netpoll under a cross-core flood and profiles scheduler + lock contention. On our box
 (6 cores, loopback) it showed ~31% less CPU at equal throughput — but **we could not saturate
 the cores** (loopback loadgen caps ~21–27k conn/s; the public-IP path is throttled). **On your
@@ -255,13 +255,13 @@ class of "the benchmark flattered itself" trap the anti-fooling rules (§intro) 
 ## 7. Where the code and evidence live
 
 - Repo: `github.com/thealonlevi/flash-relay`, branch **`main`** (library + fixed relay + all
-  harnesses + results). `RELAY_PLAN.md` is the full plan; `gate/DESIGN.md` is the measurement
-  contract; `gate/results/` holds the raw run outputs (`SUMMARY.md`, `RESULT.txt`, perf
+  harnesses + results). `RELAY_PLAN.md` is the full plan; `research/gate/DESIGN.md` is the measurement
+  contract; `research/gate/results/` holds the raw run outputs (`SUMMARY.md`, `RESULT.txt`, perf
   reports).
 - Key dirs: `flashrelay/` (the importable library — API + per-core engine), `examples/echo-relay`
   (minimal embedding), `internal/uring` (the hand-rolled ring: accept/recv/send/close/timeout/splice),
-  `internal/rawsock` (no-net sockets, IPv4+IPv6), `gate/cmd/relay-uring` (the benchmark SUT),
-  `gate/cmd/relay-netpoll` (the baseline), `gate/harness/` (gate.sh / flood.sh / hold.sh /
+  `internal/rawsock` (no-net sockets, IPv4+IPv6), `research/gate/cmd/relay-uring` (the benchmark SUT),
+  `research/gate/cmd/relay-netpoll` (the baseline), `research/gate/harness/` (gate.sh / flood.sh / hold.sh /
   DEPLOY-LOADGEN.md).
 
 **Bottom line:** the mechanism is real and measured — epoll eliminated, ~1.4–2× less CPU/conn,

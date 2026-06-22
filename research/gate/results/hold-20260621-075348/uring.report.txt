@@ -1,0 +1,497 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 5K of event 'cpu-clock'
+# Event count (approx.): 5182547503
+#
+# Overhead  Command      Shared Object      Symbol                                                                   
+# ........  ...........  .................  .........................................................................
+#
+    39.83%  relay-uring  [kernel.kallsyms]  [k] __inet_check_established
+            |
+            ---__inet_check_established
+               |          
+                --39.60%--__inet_hash_connect
+                          inet_hash_connect
+                          tcp_v4_connect
+                          __inet_stream_connect
+                          inet_stream_connect
+                          __sys_connect_file
+                          __sys_connect
+                          __x64_sys_connect
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.connect
+                          syscall.Connect
+                          github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                          github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                          main.main.func1
+                          runtime.goexit.abi0
+
+    14.61%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_lock_bh
+            |
+            ---_raw_spin_lock_bh
+               |          
+                --14.50%--inet_hash_connect
+                          tcp_v4_connect
+                          __inet_stream_connect
+                          inet_stream_connect
+                          __sys_connect_file
+                          __sys_connect
+                          __x64_sys_connect
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.connect
+                          syscall.Connect
+                          github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                          github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                          main.main.func1
+                          runtime.goexit.abi0
+
+    12.12%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_lock
+            |
+            ---_raw_spin_lock
+               |          
+                --12.00%--__inet_hash_connect
+                          inet_hash_connect
+                          tcp_v4_connect
+                          __inet_stream_connect
+                          inet_stream_connect
+                          __sys_connect_file
+                          __sys_connect
+                          __x64_sys_connect
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.connect
+                          syscall.Connect
+                          github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                          github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                          main.main.func1
+                          runtime.goexit.abi0
+
+    11.48%  relay-uring  [kernel.kallsyms]  [k] __raw_callee_save___pv_queued_spin_unlock
+            |
+            ---__raw_callee_save___pv_queued_spin_unlock
+               |          
+               |--8.19%--_raw_spin_unlock
+               |          |          
+               |           --8.13%--__inet_check_established
+               |                     __inet_hash_connect
+               |                     inet_hash_connect
+               |                     tcp_v4_connect
+               |                     __inet_stream_connect
+               |                     inet_stream_connect
+               |                     __sys_connect_file
+               |                     __sys_connect
+               |                     __x64_sys_connect
+               |                     x64_sys_call
+               |                     do_syscall_64
+               |                     entry_SYSCALL_64_after_hwframe
+               |                     internal/runtime/syscall.Syscall6
+               |                     syscall.Syscall
+               |                     syscall.connect
+               |                     syscall.Connect
+               |                     github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+               |                     github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+               |                     main.main.func1
+               |                     runtime.goexit.abi0
+               |          
+                --3.21%--_raw_spin_unlock_bh
+                          |          
+                           --3.19%--__inet_hash_connect
+                                     inet_hash_connect
+                                     tcp_v4_connect
+                                     __inet_stream_connect
+                                     inet_stream_connect
+                                     __sys_connect_file
+                                     __sys_connect
+                                     __x64_sys_connect
+                                     x64_sys_call
+                                     do_syscall_64
+                                     entry_SYSCALL_64_after_hwframe
+                                     internal/runtime/syscall.Syscall6
+                                     syscall.Syscall
+                                     syscall.connect
+                                     syscall.Connect
+                                     github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                                     github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                                     main.main.func1
+                                     runtime.goexit.abi0
+
+     6.25%  relay-uring  [kernel.kallsyms]  [k] __inet_hash_connect
+            |
+            ---__inet_hash_connect
+               inet_hash_connect
+               tcp_v4_connect
+               __inet_stream_connect
+               inet_stream_connect
+               __sys_connect_file
+               __sys_connect
+               __x64_sys_connect
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall
+               syscall.connect
+               syscall.Connect
+               github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+               github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+               main.main.func1
+               runtime.goexit.abi0
+
+     1.43%  relay-uring  [kernel.kallsyms]  [k] finish_task_switch.isra.0
+            |
+            ---finish_task_switch.isra.0
+               __schedule
+               |          
+                --1.32%--schedule
+                          |          
+                           --0.56%--futex_wait_queue
+                                     __futex_wait
+                                     futex_wait
+                                     do_futex
+                                     __x64_sys_futex
+                                     x64_sys_call
+                                     do_syscall_64
+                                     entry_SYSCALL_64_after_hwframe
+                                     runtime.futex.abi0
+
+     1.10%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
+            |
+            ---_raw_spin_unlock_irqrestore
+               |          
+                --0.50%--try_to_wake_up
+                          wake_up_q
+                          futex_wake
+                          do_futex
+                          __x64_sys_futex
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          runtime.futex.abi0
+
+     1.06%  relay-uring  [kernel.kallsyms]  [k] inet_ehashfn
+            |
+            ---inet_ehashfn
+               |          
+                --0.95%--__inet_check_established
+                          __inet_hash_connect
+                          inet_hash_connect
+                          tcp_v4_connect
+                          __inet_stream_connect
+                          inet_stream_connect
+                          __sys_connect_file
+                          __sys_connect
+                          __x64_sys_connect
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.connect
+                          syscall.Connect
+                          github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                          github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                          main.main.func1
+                          runtime.goexit.abi0
+
+     0.87%  relay-uring  [kernel.kallsyms]  [k] __pv_queued_spin_lock_slowpath
+            |
+            ---__pv_queued_spin_lock_slowpath
+               |          
+                --0.77%--_raw_spin_lock
+                          __inet_check_established
+                          __inet_hash_connect
+                          inet_hash_connect
+                          tcp_v4_connect
+                          __inet_stream_connect
+                          inet_stream_connect
+                          __sys_connect_file
+                          __sys_connect
+                          __x64_sys_connect
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall
+                          syscall.connect
+                          syscall.Connect
+                          github.com/thealonlevi/flash-relay/gate/internal/rawsock.Dial
+                          github.com/thealonlevi/flash-relay/gate/internal/hook.Config.Decide
+                          main.main.func1
+                          runtime.goexit.abi0
+
+     0.43%  relay-uring  [kernel.kallsyms]  [k] __local_bh_enable_ip
+     0.35%  relay-uring  [kernel.kallsyms]  [k] do_syscall_64
+     0.35%  relay-uring  relay-uring        [.] runtime.futex.abi0
+     0.25%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_unlock_bh
+     0.23%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_unlock
+     0.23%  relay-uring  relay-uring        [.] main.main
+     0.21%  relay-uring  [kernel.kallsyms]  [k] fget
+     0.17%  relay-uring  [kernel.kallsyms]  [k] __cond_resched
+     0.15%  relay-uring  [kernel.kallsyms]  [k] kmem_cache_free
+     0.15%  relay-uring  [vdso]             [.] 0x0000000000000c6a
+     0.15%  relay-uring  relay-uring        [.] runtime.mallocgcSmallNoscan
+     0.14%  relay-uring  [kernel.kallsyms]  [k] __inet_lookup_established
+     0.14%  relay-uring  [kernel.kallsyms]  [k] rep_movs_alternative
+     0.12%  relay-uring  [kernel.kallsyms]  [k] aa_inet_msg_perm
+     0.12%  relay-uring  [kernel.kallsyms]  [k] apparmor_socket_recvmsg
+     0.12%  relay-uring  [kernel.kallsyms]  [k] clear_page_erms
+     0.12%  relay-uring  [kernel.kallsyms]  [k] pv_native_safe_halt
+     0.12%  relay-uring  [kernel.kallsyms]  [k] sk_filter_trim_cap
+     0.12%  relay-uring  [kernel.kallsyms]  [k] tcp_event_data_recv
+     0.10%  relay-uring  [kernel.kallsyms]  [k] __ip_queue_xmit
+     0.10%  relay-uring  [kernel.kallsyms]  [k] __tcp_transmit_skb
+     0.10%  relay-uring  [kernel.kallsyms]  [k] apparmor_socket_sendmsg
+     0.10%  relay-uring  [kernel.kallsyms]  [k] sock_from_file
+     0.10%  relay-uring  [kernel.kallsyms]  [k] tcp_clean_rtx_queue.constprop.0
+     0.10%  relay-uring  [kernel.kallsyms]  [k] tcp_sendmsg_locked
+     0.10%  relay-uring  relay-uring        [.] internal/runtime/syscall.Syscall6
+     0.10%  relay-uring  relay-uring        [.] runtime.usleep.abi0
+     0.08%  relay-uring  [kernel.kallsyms]  [k] __futex_wait
+     0.08%  relay-uring  [kernel.kallsyms]  [k] __schedule
+     0.08%  relay-uring  [kernel.kallsyms]  [k] mod_memcg_state
+     0.08%  relay-uring  [kernel.kallsyms]  [k] skb_release_data
+     0.08%  relay-uring  [kernel.kallsyms]  [k] tcp_rcv_established
+     0.08%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_rcv
+     0.08%  relay-uring  [kernel.kallsyms]  [k] tctx_task_work
+     0.06%  relay-uring  [kernel.kallsyms]  [k] ___slab_alloc
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __build_skb_around
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __call_rcu_common
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __memcg_slab_free_hook
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __memcg_slab_post_alloc_hook
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __mod_timer
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __slab_free
+     0.06%  relay-uring  [kernel.kallsyms]  [k] __tcp_cleanup_rbuf
+     0.06%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_unlock_irq
+     0.06%  relay-uring  [kernel.kallsyms]  [k] dst_release
+     0.06%  relay-uring  [kernel.kallsyms]  [k] fput
+     0.06%  relay-uring  [kernel.kallsyms]  [k] futex_wake
+     0.06%  relay-uring  [kernel.kallsyms]  [k] io_arm_poll_handler
+     0.06%  relay-uring  [kernel.kallsyms]  [k] io_recv
+     0.06%  relay-uring  [kernel.kallsyms]  [k] kmem_cache_alloc_node
+     0.06%  relay-uring  [kernel.kallsyms]  [k] memset_orig
+     0.06%  relay-uring  [kernel.kallsyms]  [k] mod_objcg_state
+     0.06%  relay-uring  [kernel.kallsyms]  [k] net_rx_action
+     0.06%  relay-uring  [kernel.kallsyms]  [k] pvclock_clocksource_read_nowd
+     0.06%  relay-uring  [kernel.kallsyms]  [k] refill_stock
+     0.06%  relay-uring  [kernel.kallsyms]  [k] release_sock
+     0.06%  relay-uring  [kernel.kallsyms]  [k] tcp_ack
+     0.06%  relay-uring  [kernel.kallsyms]  [k] tcp_established_options
+     0.06%  relay-uring  [kernel.kallsyms]  [k] tcp_poll
+     0.06%  relay-uring  [kernel.kallsyms]  [k] tcp_release_cb
+     0.06%  relay-uring  [vdso]             [.] __vdso_clock_gettime
+     0.06%  relay-uring  [vdso]             [.] 0x0000000000000ae9
+     0.06%  relay-uring  relay-uring        [.] runtime.(*mheap).allocNeedsZero
+     0.06%  relay-uring  relay-uring        [.] runtime.findRunnable
+     0.06%  relay-uring  relay-uring        [.] runtime.mapaccess1_fast64
+     0.06%  relay-uring  relay-uring        [.] runtime.memhash64
+     0.06%  relay-uring  relay-uring        [.] runtime.unlock2
+     0.04%  relay-uring  [kernel.kallsyms]  [k] __dev_queue_xmit
+     0.04%  relay-uring  [kernel.kallsyms]  [k] __raw_spin_lock_irqsave
+     0.04%  relay-uring  [kernel.kallsyms]  [k] __skb_clone
+     0.04%  relay-uring  [kernel.kallsyms]  [k] _copy_from_iter
+     0.04%  relay-uring  [kernel.kallsyms]  [k] _raw_write_lock_bh
+     0.04%  relay-uring  [kernel.kallsyms]  [k] aa_inet_accept_perm
+     0.04%  relay-uring  [kernel.kallsyms]  [k] apparmor_file_alloc_security
+     0.04%  relay-uring  [kernel.kallsyms]  [k] get_timespec64
+     0.04%  relay-uring  [kernel.kallsyms]  [k] handle_softirqs
+     0.04%  relay-uring  [kernel.kallsyms]  [k] inet_accept
+     0.04%  relay-uring  [kernel.kallsyms]  [k] init_file
+     0.04%  relay-uring  [kernel.kallsyms]  [k] io_free_batch_list
+     0.04%  relay-uring  [kernel.kallsyms]  [k] io_send
+     0.04%  relay-uring  [kernel.kallsyms]  [k] ip_output
+     0.04%  relay-uring  [kernel.kallsyms]  [k] ip_rcv_core
+     0.04%  relay-uring  [kernel.kallsyms]  [k] kfree_skbmem
+     0.04%  relay-uring  [kernel.kallsyms]  [k] schedule
+     0.04%  relay-uring  [kernel.kallsyms]  [k] security_inode_free
+     0.04%  relay-uring  [kernel.kallsyms]  [k] skb_page_frag_refill
+     0.04%  relay-uring  [kernel.kallsyms]  [k] slab_update_freelist.isra.0
+     0.04%  relay-uring  [kernel.kallsyms]  [k] sock_def_readable
+     0.04%  relay-uring  [kernel.kallsyms]  [k] sock_sendmsg
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_check_space
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_cwnd_restart
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_data_queue
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_rcv_space_adjust
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_recvmsg_locked
+     0.04%  relay-uring  [kernel.kallsyms]  [k] tcp_update_pacing_rate
+     0.04%  relay-uring  [kernel.kallsyms]  [k] validate_xmit_skb
+     0.04%  relay-uring  relay-uring        [.] github.com/thealonlevi/flash-relay/gate/internal/uring.(*Ring).Submit
+     0.04%  relay-uring  relay-uring        [.] runtime.(*mcache).prepareForSweep
+     0.04%  relay-uring  relay-uring        [.] runtime.casgstatus
+     0.04%  relay-uring  relay-uring        [.] runtime.lock2
+     0.04%  relay-uring  relay-uring        [.] runtime.mapassign_fast64
+     0.04%  relay-uring  relay-uring        [.] runtime.nanotime1.abi0
+     0.04%  relay-uring  relay-uring        [.] runtime.stealWork
+     0.04%  relay-uring  relay-uring        [.] time.runtimeNow
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __alloc_skb
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __check_object_size.part.0
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __d_alloc
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __fput
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __get_user_nocheck_4
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __hrtimer_init
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __inet_accept
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __io_alloc_req_refill
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __io_commit_cqring_flush
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __io_import_iovec
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __io_queue_proc
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __kmalloc_node
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __kmem_cache_alloc_bulk
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __memcg_slab_pre_alloc_hook
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __memset
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __mkroute_output
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __netif_receive_skb_core.constprop.0
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __netif_receive_skb_one_core
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __rcu_read_lock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __release_sock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __tcp_get_metrics
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __x64_sys_futex
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __x64_sys_nanosleep
+     0.02%  relay-uring  [kernel.kallsyms]  [k] __zone_watermark_ok
+     0.02%  relay-uring  [kernel.kallsyms]  [k] _atomic_dec_and_lock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
+     0.02%  relay-uring  [kernel.kallsyms]  [k] add_wait_queue
+     0.02%  relay-uring  [kernel.kallsyms]  [k] alloc_empty_file
+     0.02%  relay-uring  [kernel.kallsyms]  [k] alloc_fd
+     0.02%  relay-uring  [kernel.kallsyms]  [k] apparmor_sock_graft
+     0.02%  relay-uring  [kernel.kallsyms]  [k] begin_current_label_crit_section
+     0.02%  relay-uring  [kernel.kallsyms]  [k] blk_start_plug_nr_ios
+     0.02%  relay-uring  [kernel.kallsyms]  [k] cgroup_sk_alloc
+     0.02%  relay-uring  [kernel.kallsyms]  [k] consume_obj_stock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] cubictcp_cwnd_event
+     0.02%  relay-uring  [kernel.kallsyms]  [k] dentry_unlink_inode
+     0.02%  relay-uring  [kernel.kallsyms]  [k] dnotify_flush
+     0.02%  relay-uring  [kernel.kallsyms]  [k] do_futex
+     0.02%  relay-uring  [kernel.kallsyms]  [k] do_nanosleep
+     0.02%  relay-uring  [kernel.kallsyms]  [k] down_write
+     0.02%  relay-uring  [kernel.kallsyms]  [k] enqueue_to_backlog
+     0.02%  relay-uring  [kernel.kallsyms]  [k] evict
+     0.02%  relay-uring  [kernel.kallsyms]  [k] fib_table_lookup
+     0.02%  relay-uring  [kernel.kallsyms]  [k] futex_q_lock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] futex_wake_mark
+     0.02%  relay-uring  [kernel.kallsyms]  [k] get_page_from_freelist
+     0.02%  relay-uring  [kernel.kallsyms]  [k] hrtimer_active
+     0.02%  relay-uring  [kernel.kallsyms]  [k] hrtimer_nanosleep
+     0.02%  relay-uring  [kernel.kallsyms]  [k] inet_csk_accept
+     0.02%  relay-uring  [kernel.kallsyms]  [k] inet_recvmsg
+     0.02%  relay-uring  [kernel.kallsyms]  [k] inet_release
+     0.02%  relay-uring  [kernel.kallsyms]  [k] inet_reqsk_alloc
+     0.02%  relay-uring  [kernel.kallsyms]  [k] inet_sendmsg
+     0.02%  relay-uring  [kernel.kallsyms]  [k] io_file_get_normal
+     0.02%  relay-uring  [kernel.kallsyms]  [k] io_issue_sqe
+     0.02%  relay-uring  [kernel.kallsyms]  [k] ip_finish_output2
+     0.02%  relay-uring  [kernel.kallsyms]  [k] ip_local_deliver
+     0.02%  relay-uring  [kernel.kallsyms]  [k] ip_rcv_finish_core.isra.0
+     0.02%  relay-uring  [kernel.kallsyms]  [k] irqentry_exit_to_user_mode
+     0.02%  relay-uring  [kernel.kallsyms]  [k] kmem_cache_alloc
+     0.02%  relay-uring  [kernel.kallsyms]  [k] kmem_cache_alloc_lru
+     0.02%  relay-uring  [kernel.kallsyms]  [k] ktime_get
+     0.02%  relay-uring  [kernel.kallsyms]  [k] ktime_get_with_offset
+     0.02%  relay-uring  [kernel.kallsyms]  [k] kvm_clock_get_cycles
+     0.02%  relay-uring  [kernel.kallsyms]  [k] lock_sock_nested
+     0.02%  relay-uring  [kernel.kallsyms]  [k] lockref_put_return
+     0.02%  relay-uring  [kernel.kallsyms]  [k] locks_remove_file
+     0.02%  relay-uring  [kernel.kallsyms]  [k] minmax_running_min
+     0.02%  relay-uring  [kernel.kallsyms]  [k] mptcp_is_checksum_enabled
+     0.02%  relay-uring  [kernel.kallsyms]  [k] mutex_lock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] mutex_trylock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] neigh_hh_output
+     0.02%  relay-uring  [kernel.kallsyms]  [k] nft_do_chain
+     0.02%  relay-uring  [kernel.kallsyms]  [k] obj_cgroup_charge
+     0.02%  relay-uring  [kernel.kallsyms]  [k] percpu_counter_add_batch
+     0.02%  relay-uring  [kernel.kallsyms]  [k] rcu_cblist_dequeue
+     0.02%  relay-uring  [kernel.kallsyms]  [k] rcu_segcblist_ready_cbs
+     0.02%  relay-uring  [kernel.kallsyms]  [k] should_failslab.constprop.0
+     0.02%  relay-uring  [kernel.kallsyms]  [k] shuffle_freelist
+     0.02%  relay-uring  [kernel.kallsyms]  [k] simple_copy_to_iter
+     0.02%  relay-uring  [kernel.kallsyms]  [k] skb_attempt_defer_free
+     0.02%  relay-uring  [kernel.kallsyms]  [k] skb_put
+     0.02%  relay-uring  [kernel.kallsyms]  [k] sock_poll
+     0.02%  relay-uring  [kernel.kallsyms]  [k] sock_recvmsg
+     0.02%  relay-uring  [kernel.kallsyms]  [k] sock_rfree
+     0.02%  relay-uring  [kernel.kallsyms]  [k] strlen
+     0.02%  relay-uring  [kernel.kallsyms]  [k] subflow_ulp_clone
+     0.02%  relay-uring  [kernel.kallsyms]  [k] syscall_exit_to_user_mode_prepare
+     0.02%  relay-uring  [kernel.kallsyms]  [k] task_work_run
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_chrono_stop
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_current_mss
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_cwnd_validate
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_delack_timer_handler
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_event_new_data_sent
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_init_cwnd
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_initialize_rcv_mss
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_mtu_probe
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_queue_rcv
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_rate_check_app_limited
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_rbtree_insert
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_rearm_rto
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_recvmsg
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_schedule_loss_probe.part.0
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_set_state
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_stream_memory_free
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_synack_options
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_tso_segs
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_update_skb_after_send
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_destroy_sock
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_do_rcv
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_fill_cb
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_v4_reqsk_destructor
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_validate_incoming
+     0.02%  relay-uring  [kernel.kallsyms]  [k] tcp_wfree
+     0.02%  relay-uring  [kernel.kallsyms]  [k] timer_delete
+     0.02%  relay-uring  [kernel.kallsyms]  [k] truncate_inode_pages_final
+     0.02%  relay-uring  [kernel.kallsyms]  [k] truncate_inode_pages_range
+     0.02%  relay-uring  [kernel.kallsyms]  [k] wake_q_add_safe
+     0.02%  relay-uring  [kernel.kallsyms]  [k] wake_up_bit
+     0.02%  relay-uring  [kernel.kallsyms]  [k] x64_sys_call
+     0.02%  relay-uring  [kernel.kallsyms]  [k] xa_load
+     0.02%  relay-uring  [kernel.kallsyms]  [k] xas_start
+     0.02%  relay-uring  [vdso]             [.] 0x0000000000000ab0
+     0.02%  relay-uring  [vdso]             [.] 0x0000000000000ab7
+     0.02%  relay-uring  [vdso]             [.] 0x0000000000000ad6
+     0.02%  relay-uring  [vdso]             [.] 0x0000000000000c8e
+     0.02%  relay-uring  relay-uring        [.] fmt.(*fmt).fmtInteger
+     0.02%  relay-uring  relay-uring        [.] runtime.(*limiterEvent).stop
+     0.02%  relay-uring  relay-uring        [.] runtime.(*mspan).writeHeapBitsSmall
+     0.02%  relay-uring  relay-uring        [.] runtime.(*timers).check
+     0.02%  relay-uring  relay-uring        [.] runtime.acquirep
+     0.02%  relay-uring  relay-uring        [.] runtime.chansend
+     0.02%  relay-uring  relay-uring        [.] runtime.growslice
+     0.02%  relay-uring  relay-uring        [.] runtime.mcall
+     0.02%  relay-uring  relay-uring        [.] runtime.mput
+     0.02%  relay-uring  relay-uring        [.] runtime.newMarkBits
+     0.02%  relay-uring  relay-uring        [.] runtime.newobject
+     0.02%  relay-uring  relay-uring        [.] runtime.pidleget
+     0.02%  relay-uring  relay-uring        [.] runtime.preemptone
+     0.02%  relay-uring  relay-uring        [.] runtime.publicationBarrier
+     0.02%  relay-uring  relay-uring        [.] runtime.releaseSudog
+     0.02%  relay-uring  relay-uring        [.] runtime.releasepNoTrace
+     0.02%  relay-uring  relay-uring        [.] runtime.retake
+     0.02%  relay-uring  relay-uring        [.] runtime.schedule
+     0.02%  relay-uring  relay-uring        [.] runtime.sigsend
+     0.02%  relay-uring  relay-uring        [.] runtime.stopm
+     0.02%  relay-uring  relay-uring        [.] runtime.sysmon
+     0.02%  relay-uring  relay-uring        [.] runtime.systemstack.abi0
+     0.02%  relay-uring  relay-uring        [.] syscall.(*SockaddrInet4).sockaddr
+     0.02%  relay-uring  relay-uring        [.] syscall.RawSyscall6
+     0.02%  relay-uring  relay-uring        [.] time.Now
+     0.02%  relay-uring  relay-uring        [.] time.Time.Before
+     0.02%  relay-uring  relay-uring        [.] time.now
+     0.02%  relay-uring  relay-uring        [.] time.runtimeNano
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

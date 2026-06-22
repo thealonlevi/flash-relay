@@ -1,0 +1,84 @@
+# research/optimizer/config — the FIXED rules of the game (replicates flashaccept's research/harness/config,
+# tuned for the two-fd relay). The optimizer reads these but MUST NOT change them.
+
+# --- topology / core budget (this box: 13 cores, single socket) -------------
+CORES=1
+SUT_CPU=6            # the io_uring relay (the thing measured), 1 core
+SINK_CPU=7          # upstream sink
+LG_CPUS=9,10,11,12  # loadgen (must out-supply the SUT)
+
+# --- ports (reserved in sysctl so the churn storm can't grab them) ----------
+RPORT=18000         # relay listen
+SPORT=18100         # sink listen
+DPORT=18200         # relay listen for the duplex correctness smoke
+EPORT=18300         # echo sink for the duplex smoke
+
+# --- objective (what the inner loop maximizes — ONE per campaign) ------------
+# instr_pc      : churn workload, SCORE = 1e9/instr_per_conn (accept-path/CPU wins,
+#                 e.g. registered descriptors). The default.
+# bytes_per_cpu : B4 bulk-throughput workload, SCORE = relayed_bytes / instructions
+#                 * 1e6 (data-plane wins, e.g. splice). Run a separate campaign.
+# In single mode the chosen objective is the maximize-target; every other metric is
+# protected as a no-regress gate in the promotion suite. In PARETO mode (default)
+# the loop measures BOTH objectives each iteration and keeps a mutation only if it
+# improves at least one and regresses NEITHER — "optimize on everything" directly,
+# no magic weighted score.
+OBJECTIVE="${OBJECTIVE:-instr_pc}"   # only used when MODE=single
+MODE="${MODE:-pareto}"               # pareto (both objectives) | single (OBJECTIVE only)
+
+# --- workload (B2-style churn, CPU-bound on loopback) -----------------------
+REQLEN=64
+REPLYLEN=256
+MEASURE_CONNS=512   # FIXED in-flight for the scored measurement (low instr/conn noise)
+AUTHCPU=5us         # realistic decision hook cost (LOCKED contract; see internal/hook)
+WARMUP=2
+MEASURE=5
+N=8                 # reps per scored config; more reps = tighter noise band (raised 5->8 so genuine ~1-2% wins clear the promote threshold instead of drowning in measurement noise)
+SETTLE=1
+
+# --- B4 bulk-throughput workload (for OBJECTIVE=bytes_per_cpu) ---------------
+TPORT=18400         # relay listen for the bulk-throughput arm
+TEPORT=18500        # echo sink for the bulk-throughput arm
+BULK_CONNS=64       # concurrent long-lived full-duplex bulk transfers
+BULK_BYTES=262144   # write/read chunk bytes (256 KiB — amortizes syscalls; 64*256K*2 ~ 32 MB)
+BULK_SPLICE=1        # bytes_per_cpu arm uses the zero-copy splice relay (the real data-plane headroom)
+
+# --- anti-cheat gate (any failure => score 0) -------------------------------
+DROP_CEILING=0.001  # connection failure rate ceiling
+TWO_FD_TOL=0.10     # sink-served must be within 10% of completed (proves it dialed upstream)
+DUPLEX_SMOKE_CONNS=10  # long-lived echo conns that must all succeed (duplex not broken)
+
+# --- promotion gate suite (cross-workload no-regress; runs only on a candidate
+#     that beats the champion — the expensive checks stay off the inner loop) --
+RUN_GATE_SUITE="${RUN_GATE_SUITE:-1}"   # 0 disables (debug only)
+FLOOD_CONNS=2000        # connect-flood concurrency for the deadlock/CPU gate
+FLOOD_SECS=8            # flood duration
+FLOOD_CPU_CEIL=1.30     # flood CPU/conn must stay within 1.30x of the champion's
+HOLD_CONNS=20000        # held-connection count for the RSS-slope gate
+RSS_SLOPE_CEIL=16384    # max bytes/conn of relay RSS (LEAK guard, not a tight buffer cap:
+                        # legit cost is ~2x bufsize + overhead, ~6 KB/conn at 40k+ scale;
+                        # 16 KB catches a real per-conn leak with margin)
+REGRESS_TOL=0.02        # neither objective may drop more than this (matched to EPSILON
+                        # so a promote can never give back more on one axis than it
+                        # gains on the other; safe at N=8's tighter noise band)
+
+# --- the ONLY paths the optimizer may edit (everything else is LOCKED) ------
+# The ring (internal/uring) is shared by the library + the SUT, so a ring win
+# lands in both; engine logic in flashrelay/ is hand-ported, never auto-edited.
+ALLOWED_PATHS="internal/uring research/gate/cmd/relay-uring"
+
+# --- optimizer loop knobs ---------------------------------------------------
+EPSILON=0.02        # promote only if >2% better than champion (lowered 3->2 with N=8 noise reduction, so the hook-dominated workload's genuine small wins can promote)
+PATIENCE=50         # configs without improvement => plateau => stop
+K=15                # re-check baseline (control drift) every K iterations
+OPT_MODEL="opus"    # budget is not a constraint -> Opus every iteration (quality over cost)
+ITER_TIMEOUT=900    # 15 min per claude -p iteration
+CTX_ROTATE_TOKENS=120000
+
+# --- paths ------------------------------------------------------------------
+CH_DB="flashrelay"
+RESULTS_DIR="research/optimizer/results"
+BEST="research/optimizer/results/BEST.json"
+OPT_BRANCH="optimizer-run"
+
+[ -f research/optimizer/config.local ] && . research/optimizer/config.local

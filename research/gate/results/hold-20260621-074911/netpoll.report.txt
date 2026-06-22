@@ -1,0 +1,1198 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 245  of event 'cpu-clock'
+# Event count (approx.): 245737205
+#
+# Overhead  Command        Shared Object      Symbol                                  
+# ........  .............  .................  ........................................
+#
+    10.20%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
+            |
+            ---_raw_spin_unlock_irqrestore
+               |          
+               |--6.53%--__wake_up_sync_key
+               |          sock_def_readable
+               |          tcp_data_ready
+               |          |          
+               |          |--3.67%--tcp_data_queue
+               |          |          tcp_rcv_established
+               |          |          tcp_v4_do_rcv
+               |          |          tcp_v4_rcv
+               |          |          ip_protocol_deliver_rcu
+               |          |          ip_local_deliver_finish
+               |          |          ip_local_deliver
+               |          |          ip_rcv
+               |          |          __netif_receive_skb_one_core
+               |          |          __netif_receive_skb
+               |          |          process_backlog
+               |          |          __napi_poll
+               |          |          net_rx_action
+               |          |          handle_softirqs
+               |          |          __do_softirq
+               |          |          do_softirq.part.0
+               |          |          __local_bh_enable_ip
+               |          |          __dev_queue_xmit
+               |          |          neigh_hh_output
+               |          |          ip_finish_output2
+               |          |          __ip_finish_output
+               |          |          ip_finish_output
+               |          |          ip_output
+               |          |          ip_local_out
+               |          |          __ip_queue_xmit
+               |          |          ip_queue_xmit
+               |          |          __tcp_transmit_skb
+               |          |          tcp_write_xmit
+               |          |          __tcp_push_pending_frames
+               |          |          tcp_push
+               |          |          tcp_sendmsg_locked
+               |          |          tcp_sendmsg
+               |          |          inet_sendmsg
+               |          |          sock_sendmsg
+               |          |          splice_to_socket
+               |          |          do_splice
+               |          |          __do_splice
+               |          |          __x64_sys_splice
+               |          |          x64_sys_call
+               |          |          do_syscall_64
+               |          |          entry_SYSCALL_64_after_hwframe
+               |          |          internal/runtime/syscall.Syscall6
+               |          |          syscall.Syscall6
+               |          |          syscall.Splice
+               |          |          internal/poll.splicePump
+               |          |          internal/poll.Splice
+               |          |          net.spliceFrom
+               |          |          net.(*TCPConn).readFrom
+               |          |          net.(*TCPConn).ReadFrom
+               |          |          io.copyBuffer
+               |          |          net.genericWriteTo
+               |          |          net.(*TCPConn).writeTo
+               |          |          net.(*TCPConn).WriteTo
+               |          |          io.copyBuffer
+               |          |          main.main.func3.gowrap3
+               |          |          runtime.goexit.abi0
+               |          |          
+               |           --2.86%--tcp_rcv_established
+               |                     tcp_v4_do_rcv
+               |                     tcp_v4_rcv
+               |                     ip_protocol_deliver_rcu
+               |                     ip_local_deliver_finish
+               |                     ip_local_deliver
+               |                     ip_rcv
+               |                     __netif_receive_skb_one_core
+               |                     __netif_receive_skb
+               |                     process_backlog
+               |                     __napi_poll
+               |                     net_rx_action
+               |                     handle_softirqs
+               |                     __do_softirq
+               |                     do_softirq.part.0
+               |                     __local_bh_enable_ip
+               |                     __dev_queue_xmit
+               |                     neigh_hh_output
+               |                     ip_finish_output2
+               |                     __ip_finish_output
+               |                     ip_finish_output
+               |                     ip_output
+               |                     ip_local_out
+               |                     __ip_queue_xmit
+               |                     ip_queue_xmit
+               |                     __tcp_transmit_skb
+               |                     tcp_write_xmit
+               |                     __tcp_push_pending_frames
+               |                     tcp_push
+               |                     tcp_sendmsg_locked
+               |                     tcp_sendmsg
+               |                     inet_sendmsg
+               |                     sock_sendmsg
+               |                     splice_to_socket
+               |                     do_splice
+               |                     __do_splice
+               |                     __x64_sys_splice
+               |                     x64_sys_call
+               |                     do_syscall_64
+               |                     entry_SYSCALL_64_after_hwframe
+               |                     internal/runtime/syscall.Syscall6
+               |                     syscall.Syscall6
+               |                     syscall.Splice
+               |                     internal/poll.splicePump
+               |                     internal/poll.Splice
+               |                     net.spliceFrom
+               |                     net.(*TCPConn).readFrom
+               |                     net.(*TCPConn).ReadFrom
+               |                     io.copyBuffer
+               |                     net.genericWriteTo
+               |                     net.(*TCPConn).writeTo
+               |                     net.(*TCPConn).WriteTo
+               |                     io.copyBuffer
+               |                     main.main.func3
+               |                     main.main.gowrap1
+               |                     runtime.goexit.abi0
+               |          
+               |--1.22%--try_to_wake_up
+               |          wake_up_q
+               |          futex_wake
+               |          do_futex
+               |          __x64_sys_futex
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          runtime.futex.abi0
+               |          runtime.notewakeup
+               |          runtime.entersyscall_sysmon
+               |          runtime.systemstack.abi0
+               |          runtime.reentersyscall
+               |          runtime.entersyscall
+               |          syscall.Syscall6
+               |          syscall.Splice
+               |          internal/poll.spliceDrain
+               |          internal/poll.Splice
+               |          net.spliceFrom
+               |          net.(*TCPConn).readFrom
+               |          net.(*TCPConn).ReadFrom
+               |          io.copyBuffer
+               |          net.genericWriteTo
+               |          net.(*TCPConn).writeTo
+               |          net.(*TCPConn).WriteTo
+               |          io.copyBuffer
+               |          |          
+               |           --0.82%--main.main.func3.gowrap3
+               |                     runtime.goexit.abi0
+               |          
+               |--0.82%--hrtimer_try_to_cancel.part.0
+               |          hrtimer_cancel
+               |          futex_wait
+               |          do_futex
+               |          __x64_sys_futex
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          runtime.futex.abi0
+               |          runtime.notetsleep_internal
+               |          runtime.notetsleep
+               |          runtime.sysmon
+               |          runtime.mstart1
+               |          runtime.mstart0
+               |          runtime.mstart.abi0
+               |          0
+               |          
+               |--0.82%--hrtimer_start_range_ns
+               |          
+                --0.82%--__mod_timer
+                          mod_timer
+                          sk_reset_timer
+
+     8.57%  relay-netpoll  [kernel.kallsyms]  [k] do_syscall_64
+            |
+            ---do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               |          
+               |--5.31%--internal/runtime/syscall.Syscall6
+               |          |          
+               |           --4.90%--syscall.Syscall6
+               |                     syscall.Splice
+               |                     |          
+               |                     |--2.86%--internal/poll.splicePump
+               |                     |          internal/poll.Splice
+               |                     |          net.spliceFrom
+               |                     |          net.(*TCPConn).readFrom
+               |                     |          net.(*TCPConn).ReadFrom
+               |                     |          io.copyBuffer
+               |                     |          net.genericWriteTo
+               |                     |          net.(*TCPConn).writeTo
+               |                     |          net.(*TCPConn).WriteTo
+               |                     |          io.copyBuffer
+               |                     |          |          
+               |                     |          |--2.04%--main.main.func3.gowrap3
+               |                     |          |          runtime.goexit.abi0
+               |                     |          |          
+               |                     |           --0.82%--main.main.func3
+               |                     |                     main.main.gowrap1
+               |                     |                     runtime.goexit.abi0
+               |                     |          
+               |                      --2.04%--internal/poll.spliceDrain
+               |                                internal/poll.Splice
+               |                                net.spliceFrom
+               |                                net.(*TCPConn).readFrom
+               |                                net.(*TCPConn).ReadFrom
+               |                                io.copyBuffer
+               |                                net.genericWriteTo
+               |                                net.(*TCPConn).writeTo
+               |                                net.(*TCPConn).WriteTo
+               |                                io.copyBuffer
+               |                                |          
+               |                                 --1.63%--main.main.func3.gowrap3
+               |                                           runtime.goexit.abi0
+               |          
+                --2.86%--runtime.futex.abi0
+                          |          
+                          |--1.22%--runtime.notetsleep_internal
+                          |          runtime.notetsleep
+                          |          runtime.sysmon
+                          |          runtime.mstart1
+                          |          runtime.mstart0
+                          |          runtime.mstart.abi0
+                          |          0
+                          |          |          
+                          |           --0.82%--0xc0002efc00
+                          |                     0xfe5894855ccccc3
+                          |          
+                           --1.22%--runtime.notewakeup
+                                     runtime.entersyscall_sysmon
+                                     runtime.systemstack.abi0
+                                     runtime.reentersyscall
+                                     runtime.entersyscall
+                                     syscall.Syscall6
+                                     syscall.Splice
+                                     internal/poll.spliceDrain
+                                     internal/poll.Splice
+                                     net.spliceFrom
+                                     net.(*TCPConn).readFrom
+                                     net.(*TCPConn).ReadFrom
+                                     io.copyBuffer
+                                     net.genericWriteTo
+                                     net.(*TCPConn).writeTo
+                                     net.(*TCPConn).WriteTo
+                                     io.copyBuffer
+                                     |          
+                                      --0.82%--main.main.func3.gowrap3
+                                                runtime.goexit.abi0
+
+     7.76%  relay-netpoll  [kernel.kallsyms]  [k] finish_task_switch.isra.0
+            |
+            ---finish_task_switch.isra.0
+               __schedule
+               schedule
+               |          
+               |--4.08%--futex_wait_queue
+               |          __futex_wait
+               |          futex_wait
+               |          do_futex
+               |          __x64_sys_futex
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          runtime.futex.abi0
+               |          runtime.notetsleep_internal
+               |          runtime.notetsleep
+               |          runtime.sysmon
+               |          runtime.mstart1
+               |          runtime.mstart0
+               |          runtime.mstart.abi0
+               |          0
+               |          |          
+               |           --2.45%--0xc0002efc00
+               |                     0xfe5894855ccccc3
+               |          
+               |--2.45%--schedule_hrtimeout_range_clock
+               |          schedule_hrtimeout_range
+               |          ep_poll
+               |          do_epoll_wait
+               |          do_epoll_pwait.part.0
+               |          __x64_sys_epoll_pwait
+               |          x64_sys_call
+               |          do_syscall_64
+               |          entry_SYSCALL_64_after_hwframe
+               |          internal/runtime/syscall.Syscall6
+               |          runtime.netpoll
+               |          runtime.findRunnable
+               |          runtime.schedule
+               |          runtime.park_m
+               |          runtime.mcall
+               |          
+                --1.22%--do_nanosleep
+                          hrtimer_nanosleep
+                          __x64_sys_nanosleep
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          runtime.usleep.abi0
+                          runtime.sysmon
+                          runtime.mstart1
+                          runtime.mstart0
+                          runtime.mstart.abi0
+                          0
+                          0xc0002efc00
+                          0xfe5894855ccccc3
+
+     7.35%  relay-netpoll  relay-netpoll      [.] internal/runtime/syscall.Syscall6
+            |
+            ---internal/runtime/syscall.Syscall6
+               |          
+               |--4.08%--syscall.Syscall6
+               |          syscall.Splice
+               |          |          
+               |          |--2.45%--internal/poll.spliceDrain
+               |          |          internal/poll.Splice
+               |          |          net.spliceFrom
+               |          |          net.(*TCPConn).readFrom
+               |          |          net.(*TCPConn).ReadFrom
+               |          |          io.copyBuffer
+               |          |          net.genericWriteTo
+               |          |          net.(*TCPConn).writeTo
+               |          |          net.(*TCPConn).WriteTo
+               |          |          io.copyBuffer
+               |          |          |          
+               |          |           --2.04%--main.main.func3
+               |          |                     main.main.gowrap1
+               |          |                     runtime.goexit.abi0
+               |          |          
+               |           --1.63%--internal/poll.splicePump
+               |                     internal/poll.Splice
+               |                     net.spliceFrom
+               |                     net.(*TCPConn).readFrom
+               |                     net.(*TCPConn).ReadFrom
+               |                     io.copyBuffer
+               |                     net.genericWriteTo
+               |                     net.(*TCPConn).writeTo
+               |                     net.(*TCPConn).WriteTo
+               |                     io.copyBuffer
+               |                     |          
+               |                     |--0.82%--main.main.func3.gowrap3
+               |                     |          runtime.goexit.abi0
+               |                     |          
+               |                      --0.82%--main.main.func3
+               |                                main.main.gowrap1
+               |                                runtime.goexit.abi0
+               |          
+                --3.27%--runtime.netpoll
+                          runtime.findRunnable
+                          runtime.schedule
+                          runtime.park_m
+                          runtime.mcall
+
+     2.86%  relay-netpoll  [kernel.kallsyms]  [k] __inet_lookup_established
+            |
+            ---__inet_lookup_established
+               |          
+                --2.45%--__inet_lookup_skb
+                          tcp_v4_rcv
+                          ip_protocol_deliver_rcu
+                          ip_local_deliver_finish
+                          ip_local_deliver
+                          ip_rcv
+                          __netif_receive_skb_one_core
+                          __netif_receive_skb
+                          process_backlog
+                          __napi_poll
+                          net_rx_action
+                          handle_softirqs
+                          __do_softirq
+                          do_softirq.part.0
+                          __local_bh_enable_ip
+                          __dev_queue_xmit
+                          neigh_hh_output
+                          ip_finish_output2
+                          __ip_finish_output
+                          ip_finish_output
+                          ip_output
+                          ip_local_out
+                          __ip_queue_xmit
+                          ip_queue_xmit
+                          __tcp_transmit_skb
+                          tcp_write_xmit
+                          __tcp_push_pending_frames
+                          tcp_push
+                          tcp_sendmsg_locked
+                          tcp_sendmsg
+                          inet_sendmsg
+                          sock_sendmsg
+                          splice_to_socket
+                          do_splice
+                          __do_splice
+                          __x64_sys_splice
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          syscall.Splice
+                          internal/poll.splicePump
+                          internal/poll.Splice
+                          net.spliceFrom
+                          net.(*TCPConn).readFrom
+                          net.(*TCPConn).ReadFrom
+                          io.copyBuffer
+                          net.genericWriteTo
+                          net.(*TCPConn).writeTo
+                          net.(*TCPConn).WriteTo
+                          io.copyBuffer
+                          |          
+                          |--1.63%--main.main.func3
+                          |          main.main.gowrap1
+                          |          runtime.goexit.abi0
+                          |          
+                           --0.82%--main.main.func3.gowrap3
+                                     runtime.goexit.abi0
+
+     2.45%  relay-netpoll  relay-netpoll      [.] runtime.futex.abi0
+            |
+            ---runtime.futex.abi0
+               |          
+               |--1.63%--runtime.notewakeup
+               |          runtime.entersyscall_sysmon
+               |          runtime.systemstack.abi0
+               |          runtime.reentersyscall
+               |          runtime.entersyscall
+               |          syscall.Syscall6
+               |          syscall.Splice
+               |          internal/poll.spliceDrain
+               |          internal/poll.Splice
+               |          net.spliceFrom
+               |          net.(*TCPConn).readFrom
+               |          net.(*TCPConn).ReadFrom
+               |          io.copyBuffer
+               |          net.genericWriteTo
+               |          net.(*TCPConn).writeTo
+               |          net.(*TCPConn).WriteTo
+               |          io.copyBuffer
+               |          |          
+               |           --1.22%--main.main.func3.gowrap3
+               |                     runtime.goexit.abi0
+               |          
+                --0.82%--runtime.notetsleep_internal
+                          runtime.notetsleep
+                          runtime.sysmon
+                          runtime.mstart1
+                          runtime.mstart0
+                          runtime.mstart.abi0
+                          0
+
+     2.04%  relay-netpoll  [kernel.kallsyms]  [k] do_splice
+            |
+            ---do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               |          
+                --1.63%--internal/poll.spliceDrain
+                          internal/poll.Splice
+                          net.spliceFrom
+                          net.(*TCPConn).readFrom
+                          net.(*TCPConn).ReadFrom
+                          io.copyBuffer
+                          net.genericWriteTo
+                          net.(*TCPConn).writeTo
+                          net.(*TCPConn).WriteTo
+                          io.copyBuffer
+                          |          
+                           --1.22%--main.main.func3.gowrap3
+                                     runtime.goexit.abi0
+
+     1.63%  relay-netpoll  relay-netpoll      [.] runtime.findRunnable
+            |
+            ---runtime.findRunnable
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     1.63%  relay-netpoll  relay-netpoll      [.] runtime.gopark
+            |
+            ---runtime.gopark
+               internal/poll.runtime_pollWait
+               internal/poll.(*pollDesc).wait
+               internal/poll.spliceDrain
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               |          
+                --1.22%--main.main.func3
+                          main.main.gowrap1
+                          runtime.goexit.abi0
+
+     1.22%  relay-netpoll  [kernel.kallsyms]  [k] ip_finish_output2
+            |
+            ---ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               |          
+                --0.82%--__tcp_send_ack.part.0
+                          tcp_send_ack
+                          __tcp_ack_snd_check
+                          tcp_rcv_established
+                          tcp_v4_do_rcv
+                          tcp_v4_rcv
+                          ip_protocol_deliver_rcu
+                          ip_local_deliver_finish
+                          ip_local_deliver
+                          ip_rcv
+                          __netif_receive_skb_one_core
+                          __netif_receive_skb
+                          process_backlog
+                          __napi_poll
+                          net_rx_action
+                          handle_softirqs
+                          __do_softirq
+                          do_softirq.part.0
+                          __local_bh_enable_ip
+                          __dev_queue_xmit
+                          neigh_hh_output
+                          ip_finish_output2
+                          __ip_finish_output
+                          ip_finish_output
+                          ip_output
+                          ip_local_out
+                          __ip_queue_xmit
+                          ip_queue_xmit
+                          __tcp_transmit_skb
+                          tcp_write_xmit
+                          __tcp_push_pending_frames
+                          tcp_push
+                          tcp_sendmsg_locked
+                          tcp_sendmsg
+                          inet_sendmsg
+                          sock_sendmsg
+                          splice_to_socket
+                          do_splice
+                          __do_splice
+                          __x64_sys_splice
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          syscall.Splice
+                          internal/poll.splicePump
+                          internal/poll.Splice
+                          net.spliceFrom
+                          net.(*TCPConn).readFrom
+                          net.(*TCPConn).ReadFrom
+                          io.copyBuffer
+                          net.genericWriteTo
+                          net.(*TCPConn).writeTo
+                          net.(*TCPConn).WriteTo
+                          io.copyBuffer
+                          main.main.func3
+                          main.main.gowrap1
+                          runtime.goexit.abi0
+
+     1.22%  relay-netpoll  [kernel.kallsyms]  [k] kmem_cache_alloc_node
+            |
+            ---kmem_cache_alloc_node
+               |          
+                --0.82%--__alloc_skb
+
+     1.22%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rcv_space_adjust
+            |
+            ---tcp_rcv_space_adjust
+               |          
+                --0.82%--tcp_read_sock
+                          tcp_splice_read
+                          sock_splice_read
+                          do_splice_read
+                          splice_file_to_pipe
+                          do_splice
+                          __do_splice
+                          __x64_sys_splice
+                          x64_sys_call
+                          do_syscall_64
+                          entry_SYSCALL_64_after_hwframe
+                          internal/runtime/syscall.Syscall6
+                          syscall.Syscall6
+                          syscall.Splice
+                          internal/poll.spliceDrain
+                          internal/poll.Splice
+                          net.spliceFrom
+                          net.(*TCPConn).readFrom
+                          net.(*TCPConn).ReadFrom
+                          io.copyBuffer
+                          net.genericWriteTo
+                          net.(*TCPConn).writeTo
+                          net.(*TCPConn).WriteTo
+                          io.copyBuffer
+                          main.main.func3
+                          main.main.gowrap1
+                          runtime.goexit.abi0
+
+     1.22%  relay-netpoll  [kernel.kallsyms]  [k] tcp_sendmsg_locked
+            |
+            ---tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               |          
+                --0.82%--main.main.func3.gowrap3
+                          runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] __fdget
+            |
+            ---__fdget
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] __sk_mem_reduce_allocated
+            |
+            ---__sk_mem_reduce_allocated
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_transmit_skb
+            |
+            ---__tcp_transmit_skb
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_unlock_irq
+            |
+            ---_raw_spin_unlock_irq
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] aa_file_perm
+            |
+            ---aa_file_perm
+               apparmor_file_permission
+               security_file_permission
+               rw_verify_area
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_file_permission
+            |
+            ---apparmor_file_permission
+               security_file_permission
+               rw_verify_area
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.spliceDrain
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] apparmor_socket_sendmsg
+            |
+            ---apparmor_socket_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] ep_poll
+            |
+            ---ep_poll
+               do_epoll_wait
+               do_epoll_pwait.part.0
+               __x64_sys_epoll_pwait
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               runtime.netpoll
+               runtime.findRunnable
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] ip_queue_xmit
+            |
+            ---ip_queue_xmit
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] kfree_skbmem
+            |
+            ---kfree_skbmem
+               napi_consume_skb
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] mem_cgroup_charge_skmem
+            |
+            ---mem_cgroup_charge_skmem
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] nft_do_chain
+            |
+            ---nft_do_chain
+               nft_do_chain_ipv4
+               nf_hook_slow
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] schedule
+            |
+            ---schedule
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] sock_rfree
+            |
+            ---sock_rfree
+               tcp_splice_read
+               sock_splice_read
+               do_splice_read
+               splice_file_to_pipe
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.spliceDrain
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] tcp_ack
+            |
+            ---tcp_ack
+               tcp_rcv_established
+               tcp_v4_do_rcv
+               tcp_v4_rcv
+               ip_protocol_deliver_rcu
+               ip_local_deliver_finish
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rcv_established
+            |
+            ---tcp_rcv_established
+               tcp_v4_do_rcv
+               tcp_v4_rcv
+               ip_protocol_deliver_rcu
+               ip_local_deliver_finish
+               ip_local_deliver
+               ip_rcv
+               __netif_receive_skb_one_core
+               __netif_receive_skb
+               process_backlog
+               __napi_poll
+               net_rx_action
+               handle_softirqs
+               __do_softirq
+               do_softirq.part.0
+               __local_bh_enable_ip
+               __dev_queue_xmit
+               neigh_hh_output
+               ip_finish_output2
+               __ip_finish_output
+               ip_finish_output
+               ip_output
+               ip_local_out
+               __ip_queue_xmit
+               ip_queue_xmit
+               __tcp_transmit_skb
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [kernel.kallsyms]  [k] tcp_schedule_loss_probe.part.0
+            |
+            ---tcp_schedule_loss_probe.part.0
+               tcp_write_xmit
+               __tcp_push_pending_frames
+               tcp_push
+               tcp_sendmsg_locked
+               tcp_sendmsg
+               inet_sendmsg
+               sock_sendmsg
+               splice_to_socket
+               do_splice
+               __do_splice
+               __x64_sys_splice
+               x64_sys_call
+               do_syscall_64
+               entry_SYSCALL_64_after_hwframe
+               internal/runtime/syscall.Syscall6
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3.gowrap3
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  [vdso]             [.] 0x0000000000000ae9
+            |
+            ---0x7ffc58592ae9
+               runtime.nanotime1.abi0
+               runtime.sysmon
+               runtime.mstart1
+               runtime.mstart0
+               runtime.mstart.abi0
+               0
+               0xc0002efc00
+               0xfe5894855ccccc3
+
+     0.82%  relay-netpoll  relay-netpoll      [.] runtime.exitsyscall
+            |
+            ---runtime.exitsyscall
+               syscall.Syscall6
+               syscall.Splice
+               internal/poll.splicePump
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+
+     0.82%  relay-netpoll  relay-netpoll      [.] runtime.netpoll
+            |
+            ---runtime.netpoll
+               runtime.findRunnable
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     0.82%  relay-netpoll  relay-netpoll      [.] runtime.netpollblock
+            |
+            ---runtime.netpollblock
+               internal/poll.runtime_pollWait
+               internal/poll.(*pollDesc).wait
+               internal/poll.spliceDrain
+               internal/poll.Splice
+               net.spliceFrom
+               net.(*TCPConn).readFrom
+               net.(*TCPConn).ReadFrom
+               io.copyBuffer
+               net.genericWriteTo
+               net.(*TCPConn).writeTo
+               net.(*TCPConn).WriteTo
+               io.copyBuffer
+               main.main.func3
+               main.main.gowrap1
+               runtime.goexit.abi0
+
+     0.82%  relay-netpoll  relay-netpoll      [.] runtime.stealWork
+            |
+            ---runtime.stealWork
+               runtime.findRunnable
+               runtime.schedule
+               runtime.park_m
+               runtime.mcall
+
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ___slab_alloc
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __build_skb_around
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __dev_queue_xmit
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __futex_wait
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __hrtimer_init
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __mod_timer
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __netif_receive_skb_core.constprop.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __skb_splice_bits.isra.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] __tcp_cleanup_rbuf
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] _copy_from_user
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] _raw_spin_lock_bh
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] cubictcp_cwnd_event
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] do_epoll_wait
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] do_nanosleep
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] do_softirq.part.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] do_splice_read
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] dst_release
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ep_item_poll.isra.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] fput
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] futex_hash
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] futex_q_lock
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] futex_wake
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] hrtimer_start_range_ns
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] inet_send_prepare
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] iov_iter_advance
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] iov_iter_bvec
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ip_output
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ip_rcv_core
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get_ts64
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] ktime_get_with_offset
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] lock_timer_base
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] mutex_lock
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] netif_rx_internal
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] nft_do_chain_ipv4
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] nft_update_chain_stats
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] pipe_clear_nowait
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] process_backlog
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] qdisc_pkt_len_init
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] rb_insert_color
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] refill_stock
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] rw_verify_area
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] security_socket_sendmsg
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] should_failslab.constprop.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] sk_filter_trim_cap
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] sk_forced_mem_schedule
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] skb_attempt_defer_free
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] skb_release_head_state
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] sock_poll
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_check_space
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_cleanup_rbuf
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_delack_timer
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_inbound_hash.constprop.0
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_queue_rcv
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_read_sock
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_recv_skb
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_rtt_estimator
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_schedule_loss_probe
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] tcp_update_skb_after_send
+     0.41%  relay-netpoll  [kernel.kallsyms]  [k] validate_xmit_skb
+     0.41%  relay-netpoll  [vdso]             [.] 0x0000000000000ab1
+     0.41%  relay-netpoll  [vdso]             [.] 0x0000000000000c6a
+     0.41%  relay-netpoll  relay-netpoll      [.] internal/poll.(*fdMutex).rwlock
+     0.41%  relay-netpoll  relay-netpoll      [.] internal/poll.Splice
+     0.41%  relay-netpoll  relay-netpoll      [.] internal/poll.spliceDrain
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.acquirep
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.casgstatus
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.injectglist
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.nanotime1.abi0
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.netpollready
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.notetsleep_internal
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.park_m
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.pidleget
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.reentersyscall
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.retake
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.timeSleepUntil
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.usleep.abi0
+     0.41%  relay-netpoll  relay-netpoll      [.] runtime.wirep
+     0.41%  relay-netpoll  relay-netpoll      [.] syscall.RawSyscall6
+     0.41%  relay-netpoll  relay-netpoll      [.] syscall.Splice
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

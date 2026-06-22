@@ -24,7 +24,7 @@ OUT=/tmp/fp-bench.jsonl; : > "$OUT"
 run(){ # $1 label  $2 fpmark
   local label=$1 mark=$2 j
   echo "[bench] running $label (FP_MARK=$mark) ..." >&2
-  j=$(FP_MARK=$mark bash optimizer/score.sh 2>/tmp/bench_$label.log | tail -1)
+  j=$(FP_MARK=$mark bash research/optimizer/score.sh 2>/tmp/bench_$label.log | tail -1)
   echo "{\"label\":\"$label\",\"fpmark\":$mark,\"r\":$j}" >> "$OUT"
   echo "[bench] $label => $j" >&2
 }

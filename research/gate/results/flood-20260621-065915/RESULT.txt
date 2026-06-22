@@ -1,0 +1,16 @@
+FLOOD MEASUREMENT  junk=93%  inflight=2000  dur=15s  1 core (loopback)
+kernel=6.8.0-57-generic  2026-06-21T06:59:17Z
+
+>>> netpoll
+  CPU cores consumed: 1.071   conn/s/core: 22,196  (junk=371,527 real=28,010 errs=0 auditfail=0)
+  where the CPU went (self%, normalized to 100% sampled):
+    Go scheduler thrash              2.6%  #
+    GC                               2.5%  #
+    netpoller/epoll                  1.2%  
+    syscall transition              21.5%  ##########
+    io_uring                         0.0%  
+    kernel TCP/net (irreducible)    58.6%  #############################
+    relay's own code                13.0%  ######
+    other                            1.0%  
+
+>>> uring
