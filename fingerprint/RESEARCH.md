@@ -65,6 +65,12 @@ OS-label confirmation needs a **real NIC** (loopback MSS 65495 distorts window).
 
 
 ## Real-device captures (provenance)
+
+> IP addresses in the `captures-*-real.txt` files and below are redacted to RFC 5737
+> documentation ranges (`198.51.100.0/24` = devices, `203.0.113.0/24` = egress). Only
+> the TCP/IP fingerprint fields (TTL, options, window, IP ID, flags) are real — the
+> addresses carry no signal.
+
 - **macOS** — MacBook **M4 Pro** (2025, latest macOS): TTL64, win65535, **wscale 6**, `mss,nop,ws,nop,nop,ts,sok,eol`, plain SYN.
 - **iOS** — iPhone **17 Pro Max** (2025, latest iOS): identical layout + **wscale 6** (research had guessed 7), PLUS **ECN** (SYN ECE+CWR) and **tos 0x50** (DSCP). So on current Apple hardware iOS == macOS at the option layer; iOS additionally requests ECN (a deploy sysctl: net.ipv4.tcp_ecn) and marks DSCP (IP_TOS sockopt). Both off-by-default on our relay.
 - **Android** — real cellular device (198.51.100.11, VPN off): TTL64, win65535, **wscale 9** (research had guessed 8), `mss,sok,ts,nop,ws` == Linux layout (so NO eBPF needed — sockopt-only). tos 0x28.

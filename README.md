@@ -1,5 +1,10 @@
 # flash-relay
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go 1.25+](https://img.shields.io/badge/go-1.25%2B-00ADD8.svg)](go.mod)
+[![Platform: linux/amd64](https://img.shields.io/badge/platform-linux%2Famd64-555.svg)](#install)
+[![CGO: disabled](https://img.shields.io/badge/cgo-disabled-success.svg)](#install)
+
 **A pure-Go (`CGO_ENABLED=0`) io_uring TCP relay engine for Linux** — with **zero Go
 netpoller on any data-plane fd**. Accept a client → run a real decision hook
 (auth / blacklist / IP-alloc / dial, may block) → adopt an externally-dialed upstream
@@ -173,4 +178,4 @@ need real hardware. See [`RELAY_PLAN.md`](RELAY_PLAN.md) (plan of record),
 
 ## License
 
-TBD.
+[MIT](LICENSE) © Alon Levi.
