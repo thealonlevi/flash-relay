@@ -35,6 +35,11 @@ CONTROL=${CONTROL:-9200}        # loadgend control port (box 1 drives the run th
 RPORT=${RPORT:-18000}           # the relay's listen port on box 1 (base of the span)
 PORTS=${PORTS:-16}              # relay listen-port span; must match the sweep's PORTS
 BINDIR=${BINDIR:-/usr/local/bin}
+# NO_SINK=1 runs this box as a LOAD GENERATOR ONLY. Use it when the relay's upstream
+# lives elsewhere, and especially when this box is NOT dedicated: the storm makes only
+# outbound connections, so it needs no fixed ports, cannot collide with a resident
+# service's ephemeral churn, and adds no upstream-side load to a box serving traffic.
+NO_SINK=${NO_SINK:-0}
 
 [ "$(id -u)" = 0 ] || { echo "run as root (sysctl + ulimit + firewall)"; exit 1; }
 for b in loadgend sink; do
@@ -107,7 +112,7 @@ echo "=== 3b. sink port availability (informational — busy ports are skipped) 
 # port here is not fatal. It is still worth reporting: a box with many busy ports in
 # range is running something that will also compete with the test for CPU and NIC.
 BUSY=""
-for p in $(seq "$SPORT" $(( SPORT + SINK_PORTS - 1 ))); do
+for p in $([ "$NO_SINK" = 1 ] || seq "$SPORT" $(( SPORT + SINK_PORTS - 1 ))); do
   if ! python3 - "$p" <<'PY' 2>/dev/null
 import socket, sys
 s = socket.socket()
@@ -132,6 +137,8 @@ if [ -n "$BUSY" ]; then
   echo "    process is churning outbound connections here: Linux prefers odd ephemeral"
   echo "    ports for connect(). If that process is a live proxy, this box is NOT"
   echo "    dedicated and the run will contend with its traffic."
+elif [ "$NO_SINK" = 1 ]; then
+  echo "  sink DISABLED (NO_SINK=1) — this box generates load only, so no ports are needed"
 else
   echo "  all $SINK_PORTS ports free from $SPORT"
 fi
@@ -143,9 +150,11 @@ ulimit -n 1048576
 
 # The sink runs SEPARATELY (loadgend -sink "") so it gets its own cores. Hosting it
 # in-process would put upstream-side work inside the storm's core budget.
-taskset -c "$SINK_CORES" "$BINDIR/sink" -addr "0.0.0.0:$SPORT" -ports "$SINK_PORTS" \
-  -portwindow 512 -reqlen 64 -replylen 256 > /var/log/flashrelay-sink.log 2>&1 &
-sleep 2
+if [ "$NO_SINK" != 1 ]; then
+  taskset -c "$SINK_CORES" "$BINDIR/sink" -addr "0.0.0.0:$SPORT" -ports "$SINK_PORTS" \
+    -portwindow 512 -reqlen 64 -replylen 256 > /var/log/flashrelay-sink.log 2>&1 &
+  sleep 2
+fi
 RSPEC="$BOX1_IP:$RPORT"; [ "$PORTS" -gt 1 ] && RSPEC="$BOX1_IP:$RPORT-$(( RPORT + PORTS - 1 ))"
 taskset -c "$LG_CORES" "$BINDIR/loadgend" -control "0.0.0.0:$CONTROL" -sink "" \
   -relay "$RSPEC" -reqlen 64 -replylen 256 -srcips auto \
@@ -154,9 +163,14 @@ sleep 2
 
 echo
 echo "=== 5. verify ==="
-pgrep -x sink     >/dev/null && echo "  sink     up (:$SPORT-$(( SPORT + SINK_PORTS - 1 )), cores $SINK_CORES)" || { echo "  !! sink failed:"; tail -5 /var/log/flashrelay-sink.log; }
-BOUND=$(grep -o 'SINK_PORTS_BOUND=[0-9,]*' /var/log/flashrelay-sink.log 2>/dev/null | tail -1 | cut -d= -f2)
-echo "  sink ports bound: $(echo "$BOUND" | tr ',' ' ' | wc -w) / $SINK_PORTS"
+BOUND=""
+if [ "$NO_SINK" = 1 ]; then
+  echo "  sink     not started (NO_SINK=1 — load generator only)"
+else
+  pgrep -x sink >/dev/null && echo "  sink     up (cores $SINK_CORES)" || { echo "  !! sink failed:"; tail -5 /var/log/flashrelay-sink.log; }
+  BOUND=$(grep -o 'SINK_PORTS_BOUND=[0-9,]*' /var/log/flashrelay-sink.log 2>/dev/null | tail -1 | cut -d= -f2)
+  echo "  sink ports bound: $(echo "$BOUND" | tr ',' ' ' | wc -w) / $SINK_PORTS"
+fi
 echo "  tcp_timestamps: $(cat /proc/sys/net/ipv4/tcp_timestamps) (must be 1, or the SUT cannot reuse TIME_WAIT on its upstream dials)"
 pgrep -x loadgend >/dev/null && echo "  loadgend up (:$CONTROL, cores $LG_CORES)"    || { echo "  !! loadgend failed:"; tail -5 /var/log/flashrelay-loadgend.log; }
 echo -n "  /health: "; curl -fs --max-time 3 "http://127.0.0.1:$CONTROL/health" || echo "NO RESPONSE"
@@ -168,10 +182,15 @@ echo "headroom. With one IP, expect a hard ceiling around 60k conn/s regardless 
 echo
 MYIP=$(ip -o route get "$BOX1_IP" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
 echo
-echo "=== 6. upstream target list for box 1 ==="
-echo "  Bound ports are NOT necessarily contiguous (busy ones were skipped), so the"
-echo "  relay must be told each one. Paste into -sinkips, with -sinkports 1:"
-echo
-echo "    $(echo "$BOUND" | tr ',' '\n' | sed "s|^|${MYIP:-<this-box-ip>}:|" | paste -sd,)"
+if [ "$NO_SINK" = 1 ]; then
+  echo "=== 6. no upstream target — this box is load-only ==="
+  echo "  The relay's sink lives elsewhere. Nothing to paste."
+else
+  echo "=== 6. upstream target list for box 1 ==="
+  echo "  Bound ports are NOT necessarily contiguous (busy ones were skipped), so the"
+  echo "  relay must be told each one. Paste into -sinkips, with -sinkports 1:"
+  echo
+  echo "    $(echo "$BOUND" | tr ',' '\n' | sed "s|^|${MYIP:-<this-box-ip>}:|" | paste -sd,)"
+fi
 echo
 echo "Box 2 is ready."
