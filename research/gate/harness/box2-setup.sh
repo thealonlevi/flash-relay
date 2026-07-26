@@ -119,14 +119,26 @@ except OSError:
 PY
   then
     BUSY="$BUSY $p"
-    holder=$(ss -lntp 2>/dev/null | awk -v p=":$p\$" '$4 ~ p {print $NF; exit}')
-    echo "  port $p BUSY ${holder:-(held by a socket with no listening process — likely draining)}"
+    # -tan, not -lntp: the holder is usually NOT a listener. Linux's ephemeral
+    # allocator prefers ODD ports for connect(), so a previous storm's outbound
+    # sockets squat exactly the odd ports of any span placed inside
+    # ip_local_port_range, and a listening-only query reports "nothing holds it".
+    holder=$(ss -tan 2>/dev/null | awk -v p=":$p\$" '$4 ~ p {print $1; exit}')
+    echo "  port $p BUSY (local socket state: ${holder:-unknown})"
   fi
 done
 if [ -n "$BUSY" ]; then
   echo "  !! span $SPORT-$(( SPORT + SINK_PORTS - 1 )) is not free:$BUSY"
-  echo "  Move the span and re-run, e.g.:  sudo env SPORT=9300 BOX1_IP=$BOX1_IP LG_CORES=$LG_CORES SINK_CORES=$SINK_CORES bash $0"
-  echo "  Tell box 1 the new base port — it must dial the same span."
+  echo
+  echo "  Mostly ODD ports? Those are a previous run's OUTBOUND sockets draining, not a"
+  echo "  service: Linux prefers odd ephemeral ports for connect(). The span is now"
+  echo "  reserved (step 1), so nothing new can take it — wait ~60s for TIME_WAIT to"
+  echo "  expire and re-run this script unchanged. That keeps both load boxes on the"
+  echo "  same span, which is simpler for the relay's -sinkips."
+  echo
+  echo "  If it persists, move the span:"
+  echo "    sudo env SPORT=9300 BOX1_IP=$BOX1_IP LG_CORES=$LG_CORES SINK_CORES=$SINK_CORES bash $0"
+  echo "  and tell box 1 the new base — it dials this host as <ip>:<base>."
   exit 1
 fi
 echo "  all $SINK_PORTS ports free ($SPORT-$(( SPORT + SINK_PORTS - 1 )))"
