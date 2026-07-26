@@ -54,9 +54,26 @@ func main() {
 	}
 
 	var busy sync.Mutex // one storm at a time
+	var cancelMu sync.Mutex
+	var cancelCur chan struct{} // closed by /stop to cut the running storm short
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
+	})
+	// /stop clears a wedged run. Without it the only recovery is shell access to
+	// the load box, which the driving box does not necessarily have mid-sweep.
+	mux.HandleFunc("/stop", func(w http.ResponseWriter, r *http.Request) {
+		cancelMu.Lock()
+		c := cancelCur
+		cancelCur = nil
+		cancelMu.Unlock()
+		if c == nil {
+			w.Write([]byte("no storm running\n"))
+			return
+		}
+		close(c)
+		w.Write([]byte("stopping\n"))
 	})
 	// /srcips lets box 1 learn the storm's source IPs so it can open its relay
 	// port to all of them (the storm spreads across every IP here, not just B2).
@@ -101,6 +118,17 @@ func main() {
 			http.Error(w, "junkpct must be 0..100", http.StatusBadRequest)
 			return
 		}
+		cancel := make(chan struct{})
+		cancelMu.Lock()
+		cancelCur = cancel
+		cancelMu.Unlock()
+		cfg.Cancel = cancel
+		defer func() {
+			cancelMu.Lock()
+			cancelCur = nil
+			cancelMu.Unlock()
+		}()
+
 		log.Printf("/run relay=%s inflight=%d warmup=%v duration=%v junkpct=%d srcips=%d", cfg.Relay, cfg.InFlight, cfg.Warmup, cfg.Duration, cfg.JunkPct, len(cfg.SrcIPs))
 		res := storm.Run(cfg)
 		log.Printf("/run done: completed=%d conn/s=%.0f p99=%.0fus auditFail=%d",

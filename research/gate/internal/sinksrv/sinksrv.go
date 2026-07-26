@@ -118,6 +118,12 @@ func ListenAndServe(addr string, reqLen, replyLen int, statsPath string) error {
 		}
 		go func(c net.Conn) {
 			defer c.Close()
+			// Deadline, or a peer that opens and never sends a full request parks
+			// this goroutine forever holding an fd. That is not hypothetical: under
+			// a connect-flood over a lossy path the client's FIN can be dropped, and
+			// the sink then accumulates stuck-ESTABLISHED connections until it
+			// degrades — silently corrupting whatever it is measuring for.
+			_ = c.SetDeadline(time.Now().Add(30 * time.Second))
 			buf := make([]byte, len(want))
 			if _, err := io.ReadFull(c, buf); err != nil {
 				errs.Add(1)

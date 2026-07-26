@@ -42,6 +42,11 @@ type Config struct {
 	// source ports, so spreading across N source IPs gives ~N×. Empty = let the
 	// kernel pick the route's default source (a single IP). See ResolveSrcIPs.
 	SrcIPs []string
+	// Cancel, if non-nil, cuts the run short when closed. Without it a storm that
+	// wedges (e.g. a huge in-flight count against a lossy path) holds the daemon's
+	// one-storm-at-a-time lock with no remote way to clear it, which strands a
+	// multi-point sweep that has to fire many storms in sequence.
+	Cancel <-chan struct{}
 }
 
 // Result is the measured outcome (JSON-tagged to match the loadgen output that
@@ -168,10 +173,20 @@ func Run(cfg Config) Result {
 		}(w)
 	}
 
-	time.Sleep(cfg.Warmup)
+	// Warmup and the measured window are both cancellable, so /stop takes effect
+	// promptly instead of after the full requested duration.
+	sleepOrCancel := func(d time.Duration) {
+		t := time.NewTimer(d)
+		defer t.Stop()
+		select {
+		case <-t.C:
+		case <-cfg.Cancel:
+		}
+	}
+	sleepOrCancel(cfg.Warmup)
 	measuring.Store(true)
 	start := time.Now()
-	time.Sleep(cfg.Duration)
+	sleepOrCancel(cfg.Duration)
 	elapsed := time.Since(start)
 	measuring.Store(false)
 	close(stop)

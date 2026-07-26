@@ -258,9 +258,17 @@ print()
 
 # 5. loss / retransmit — is box 2 even reaching us?
 print("-- 5. path loss / supply --")
-line("TCPSynRetrans", f"{dk('TcpExt.TCPSynRetrans'):,}",
-     "!! SYNs being retried — box 1 is dropping them, or the path is rate-limiting"
-     if dk('TcpExt.TCPSynRetrans') else "clean")
+_syn_rt = dk('TcpExt.TCPSynRetrans')
+_syn_pct = (100.0 * _syn_rt / dk('Tcp.PassiveOpens')) if dk('Tcp.PassiveOpens') > 0 else 0.0
+line("TCPSynRetrans", f"{_syn_rt:,}",
+     f"!! {_syn_pct:.1f}% of accepts — SYNs dropped or the path is rate-limiting"
+     if _syn_pct > 2 else (f"{_syn_pct:.2f}% of accepts (normal background)" if _syn_rt else "clean"))
+# Half-open handshakes that died back to LISTEN. High here with a CLEAN listen queue
+# means the SYN-ACK or the final ACK is being lost in the PATH, not at either app.
+_af = dk('Tcp.AttemptFails')
+line("AttemptFails (half-open died)", f"{_af:,}",
+     "!! handshakes started and never completed — suspect the path, not the endpoints"
+     if _af > 0.05 * max(dk('Tcp.PassiveOpens'), 1) else "")
 line("RetransSegs", f"{dk('Tcp.RetransSegs'):,}")
 line("EstabResets", f"{dk('Tcp.EstabResets'):,}")
 line("InErrs", f"{dk('Tcp.InErrs'):,}")
@@ -283,10 +291,15 @@ if ssb.get('TCP.tw', 0) > 50000:
     v.append(f"EPHEMERAL PORTS: {ssb['TCP.tw']:,} TIME_WAIT. The relay's upstream dial "
              f"is near the ~64k/tuple ceiling — add sink ports or IPs, else you are "
              f"measuring the port allocator.")
-if dk('TcpExt.TCPSynRetrans') > 0.02 * max(dk('Tcp.PassiveOpens'), 1):
-    v.append(f"PATH: {dk('TcpExt.TCPSynRetrans'):,} SYN retransmits (>2% of accepts) — "
-             f"either box 1 is dropping SYNs or the path is rate-limiting. Re-run the "
+if _syn_pct > 2:
+    v.append(f"PATH: {_syn_rt:,} SYN retransmits ({_syn_pct:.1f}% of accepts) — either "
+             f"this box is dropping SYNs or the path is rate-limiting. Re-run the "
              f"bare-sink isolation test.")
+if _af > 0.05 * max(dk('Tcp.PassiveOpens'), 1) and not (ovf or drp):
+    v.append(f"PATH (handshake): {_af:,} connections reached SYN_RCVD and died without "
+             f"completing, while the listen queue stayed CLEAN. The SYN-ACK or the final "
+             f"ACK is being dropped between the boxes — an in-path device, not either "
+             f"endpoint. A connect-flood pattern is the usual trigger.")
 if not v:
     v.append("No kernel-side ceiling tripped. If conn/s flattened anyway, the limit is "
              "CPU inside the relay (read the perf profile) or the loadgen's supply.")
