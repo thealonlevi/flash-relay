@@ -56,7 +56,19 @@ type Config struct {
 	// 1,086 conn/s — the port allocator, not the relay. The client side already
 	// spreads across a port span; this is the symmetric half for the upstream leg.
 	SinkPorts int
-	Mark      int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
+	// SinkIPs, if non-empty, spreads the upstream dial across several upstream
+	// HOSTS as well as ports. Empty = use SinkIP alone.
+	//
+	// Two independent reasons, both measured. (1) Tuple space: destination IP is
+	// part of the 4-tuple, so N hosts multiply the ephemeral headroom the same way
+	// N ports do. (2) Path independence: this network degrades under connection
+	// concurrency per PATH, not in aggregate — two load boxes storming box 1
+	// simultaneously delivered 144,554 conn/s against 46,814 and 105,591 measured
+	// alone, i.e. 95% of the sum. The same should hold for the upstream leg, whose
+	// single-path ceiling (~50-60k with a 1-2s tail past ~1k concurrent) is
+	// otherwise what caps a relayed run.
+	SinkIPs []string
+	Mark    int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
 	// dialSeq round-robins the destination port. Per-Config, and the hook pool
 	// shares one Config, so it must be atomic.
 	dialSeq *atomic.Uint64
@@ -70,12 +82,23 @@ func (c *Config) Init() {
 	}
 }
 
-// sinkPortFor picks this dial's destination port.
-func (c Config) sinkPortFor() int {
-	if c.SinkPorts <= 1 || c.dialSeq == nil {
-		return c.SinkPort
+// sinkTargetFor picks this dial's destination (ip, port). One counter walks the
+// whole ip×port grid, so successive dials move across BOTH axes rather than
+// exhausting one host's ports before touching the next.
+func (c Config) sinkTargetFor() (string, int) {
+	ips := c.SinkIPs
+	if len(ips) == 0 {
+		ips = []string{c.SinkIP}
 	}
-	return c.SinkPort + int(c.dialSeq.Add(1)%uint64(c.SinkPorts))
+	nports := c.SinkPorts
+	if nports < 1 {
+		nports = 1
+	}
+	if c.dialSeq == nil || (len(ips) == 1 && nports == 1) {
+		return ips[0], c.SinkPort
+	}
+	n := c.dialSeq.Add(1)
+	return ips[int(n%uint64(len(ips)))], c.SinkPort + int((n/uint64(len(ips)))%uint64(nports))
 }
 
 // Spin burns d of CPU time in a busy-loop (it must compete for the core, so it
@@ -99,5 +122,6 @@ func (c Config) Decide() (int, error) {
 			time.Sleep(d) // parks THIS goroutine (off-ring), not the ring worker
 		}
 	}
-	return rawsock.DialMark(c.SinkIP, c.sinkPortFor(), c.Mark)
+	ip, port := c.sinkTargetFor()
+	return rawsock.DialMark(ip, port, c.Mark)
 }
