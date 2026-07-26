@@ -13,6 +13,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,9 +22,13 @@ import (
 	"github.com/thealonlevi/flash-relay/research/gate/internal/proto"
 )
 
-func writeStat(path string, n uint64) {
+// writeStat mirrors relay-uring's format: under the connect-flood profile most
+// connections are accepted but never complete, so both builds must publish both
+// counters or the two sides of the comparison measure different things.
+func writeStat(path string, completed, accepted uint64) {
 	tmp := path + ".tmp"
-	if os.WriteFile(tmp, []byte(fmt.Sprintf("completed=%d\n", n)), 0o644) == nil {
+	body := fmt.Sprintf("completed=%d\naccepted=%d\n", completed, accepted)
+	if os.WriteFile(tmp, []byte(body), 0o644) == nil {
 		_ = os.Rename(tmp, path)
 	}
 }
@@ -36,7 +42,8 @@ func main() {
 	dialP50 := flag.Float64("dialp50", 20, "realistic dial median ms")
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
-	statsFile := flag.String("statsfile", "", "if set, atomically write 'completed=<n>' here every 250ms (2-box harness)")
+	statsFile := flag.String("statsfile", "", "if set, atomically write the 'completed=' and 'accepted=' counters here every 250ms (2-box harness)")
+	nPorts := flag.Int("ports", 1, "listen on this many consecutive ports starting at -addr's port. Mirrors relay-uring's -ports so both builds face the SAME client port-space; the baseline must not be handed a narrower 4-tuple space than the SUT or the comparison is rigged.")
 	flag.Parse()
 
 	var delay hook.DelayFunc = hook.NoDelay()
@@ -44,14 +51,29 @@ func main() {
 		delay = hook.Lognormal(*dialP50, *dialSigma, *dialCap, 1)
 	}
 
-	ln, err := net.Listen("tcp", *addr)
-	if err != nil {
-		log.Fatalf("listen: %v", err)
+	if *nPorts < 1 {
+		log.Fatalf("-ports must be >= 1")
 	}
-	log.Printf("relay-netpoll (BASELINE) on %s -> sink %s (authcpu=%v realistic=%v)",
-		*addr, *sink, *authCPU, *realistic)
+	host, portStr, err := net.SplitHostPort(*addr)
+	if err != nil {
+		log.Fatalf("addr %q: %v", *addr, err)
+	}
+	basePort, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("addr %q: bad port: %v", *addr, err)
+	}
+	lns := make([]net.Listener, 0, *nPorts)
+	for p := 0; p < *nPorts; p++ {
+		ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(basePort+p)))
+		if err != nil {
+			log.Fatalf("listen %d: %v", basePort+p, err)
+		}
+		lns = append(lns, ln)
+	}
+	log.Printf("relay-netpoll (BASELINE) on %s ports %d..%d -> sink %s (authcpu=%v realistic=%v)",
+		host, basePort, basePort+*nPorts-1, *sink, *authCPU, *realistic)
 
-	var completed, errs atomic.Uint64
+	var completed, errs, accepted atomic.Uint64
 	go func() {
 		for range time.Tick(2 * time.Second) {
 			log.Printf("baseline completed=%d errs=%d", completed.Load(), errs.Load())
@@ -60,17 +82,33 @@ func main() {
 	if *statsFile != "" {
 		go func() {
 			for range time.Tick(250 * time.Millisecond) {
-				writeStat(*statsFile, completed.Load())
+				writeStat(*statsFile, completed.Load(), accepted.Load())
 			}
 		}()
 	}
 
+	// One accept loop per port. They all feed the same shared Go scheduler and
+	// netpoller, which is exactly the baseline property under test.
+	var wg sync.WaitGroup
+	for _, ln := range lns {
+		wg.Add(1)
+		go func(ln net.Listener) {
+			defer wg.Done()
+			acceptLoop(ln, sink, reqLen, authCPU, delay, &completed, &errs, &accepted)
+		}(ln)
+	}
+	wg.Wait()
+}
+
+func acceptLoop(ln net.Listener, sink *string, reqLen *int, authCPU *time.Duration,
+	delay hook.DelayFunc, completed, errs, accepted *atomic.Uint64) {
 	for {
 		c, err := ln.Accept()
 		if err != nil {
 			log.Printf("accept: %v", err)
 			continue
 		}
+		accepted.Add(1)
 		go func(client net.Conn) {
 			defer client.Close()
 			initial := make([]byte, *reqLen)

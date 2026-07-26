@@ -19,6 +19,8 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -64,6 +66,14 @@ func unpack(u uint64) (uint64, uint8) { return u >> 8, uint8(u & 0xff) }
 // gCompleted aggregates completed conns across all workers (for -statsfile).
 var gCompleted atomic.Uint64
 
+// gAccepted aggregates ACCEPTED conns across all workers. Under the connect-flood
+// profile these numbers diverge by more than an order of magnitude: a junk
+// connection is accepted, hits EOF instead of a request, and is torn down without
+// ever completing. Reporting only `completed` there would understate the rate the
+// relay is actually sustaining ~14x at junk=93 and measure the wrong thing
+// entirely — the flood test is about connections HANDLED per second.
+var gAccepted atomic.Uint64
+
 // pinToCore binds the calling OS thread to one CPU (sched_setaffinity), so each
 // worker gets exactly one core — clean shared-nothing per-core engines.
 func pinToCore(core int) {
@@ -75,11 +85,13 @@ func pinToCore(core int) {
 	syscall.Syscall(sysSchedSetaffinity, 0, uintptr(len(set)), uintptr(unsafe.Pointer(&set[0])))
 }
 
-// writeStat publishes the aggregate completed counter via an atomic file rename
-// (plain file I/O — no netpoller). The 2-box harness reads this for conn/s.
-func writeStat(path string, n uint64) {
+// writeStat publishes the aggregate completed AND accepted counters via an atomic
+// file rename (plain file I/O — no netpoller). The 2-box harness reads accepted for
+// conn/s under a flood and completed for the clean-relay rate.
+func writeStat(path string, completed, accepted uint64) {
 	tmp := path + ".tmp"
-	if os.WriteFile(tmp, []byte(fmt.Sprintf("completed=%d\n", n)), 0o644) == nil {
+	body := fmt.Sprintf("completed=%d\naccepted=%d\n", completed, accepted)
+	if os.WriteFile(tmp, []byte(body), 0o644) == nil {
 		_ = os.Rename(tmp, path)
 	}
 }
@@ -171,7 +183,7 @@ func main() {
 	dialP50 := flag.Float64("dialp50", 20, "realistic dial median ms")
 	dialSigma := flag.Float64("dialsigma", 0.9, "realistic dial log-space sigma")
 	dialCap := flag.Float64("dialcap", 30000, "realistic dial cap ms (dial timeout)")
-	statsFile := flag.String("statsfile", "", "if set, write aggregate 'completed=<n>' here every 250ms")
+	statsFile := flag.String("statsfile", "", "if set, write the aggregate 'completed=' and 'accepted=' counters here every 250ms")
 	duplex := flag.Bool("duplex", false, "continuous bidirectional relay (long-lived tunnels, B3)")
 	splice := flag.Bool("splice", false, "duplex via zero-copy IORING_OP_SPLICE (socket->pipe->socket) instead of recv/send (B4). Both fill (sock->pipe) and drain (pipe->sock) splices stay continuously armed per direction (the kernel pipe is the buffer), so it's deadlock-free and tears down cleanly on peer close. Measured: ~+13% bytes/instr, ~+83% MB/s vs recv/send.")
 	bufSize := flag.Int("bufsize", 16384, "per-direction relay buffer bytes (duplex mode)")
@@ -179,6 +191,8 @@ func main() {
 	acceptBatch := flag.Int("acceptbatch", 64, "accepts kept in flight per worker (bounded parallelism: throughput without flooding the CQ)")
 	workers := flag.Int("workers", 1, "number of shared-nothing per-core ring workers (SO_REUSEPORT)")
 	startCore := flag.Int("startcore", -1, "pin worker i to core startcore+i (-1 = no pinning)")
+	coreList := flag.String("cores", "", "explicit csv core list: pin worker i to cores[i] (overrides -startcore). Needed because -startcore assumes CONTIGUOUS cores, which is wrong on an interleaved multi-socket box and for any NUMA-spanning placement — see harness/topology.sh")
+	nPorts := flag.Int("ports", 1, "listen on this many consecutive ports starting at -port. EVERY worker binds EVERY port, so each port keeps a full N-member SO_REUSEPORT group (the accept-path contention under test is preserved) while the client gains a fresh ~64k ephemeral-port space per port. Needed when the load box has few source IPs: one (srcIP,dstIP,dstPort) 4-tuple caps near 64k, which otherwise caps the whole sweep well below the relay's real ceiling.")
 	fpMark := flag.Int("fpmark", 0, "SO_MARK to set on upstream dials (TCP fingerprint profile for the fingerprint/ tc-egress eBPF; 0=none, 1=Windows)")
 	flag.Parse()
 
@@ -196,33 +210,68 @@ func main() {
 	if *statsFile != "" {
 		go func() {
 			for range time.Tick(250 * time.Millisecond) {
-				writeStat(*statsFile, gCompleted.Load())
+				writeStat(*statsFile, gCompleted.Load(), gAccepted.Load())
 			}
 		}()
 	}
 
-	log.Printf("relay-uring (SUT) :%d -> sink %s:%d  workers=%d startcore=%d duplex=%v maxconns=%d/worker",
-		*port, *sinkIP, *sinkPort, *workers, *startCore, *duplex, *maxConns)
+	// Explicit per-worker core placement. -startcore only expresses a contiguous
+	// run of cores; a topology-aware list (one logical CPU per physical core on one
+	// socket, or a deliberately NUMA-interleaved list) generally is not contiguous.
+	var cores []int
+	if *coreList != "" {
+		for _, f := range strings.Split(*coreList, ",") {
+			f = strings.TrimSpace(f)
+			if f == "" {
+				continue
+			}
+			n, err := strconv.Atoi(f)
+			if err != nil {
+				log.Fatalf("-cores: bad core %q: %v", f, err)
+			}
+			cores = append(cores, n)
+		}
+		if len(cores) < *workers {
+			log.Fatalf("-cores has %d cores for %d workers: refusing to double up rings on a core "+
+				"(that silently folds SMT/scheduler contention into the measurement)", len(cores), *workers)
+		}
+	}
 
-	// Create the N SO_REUSEPORT listeners SEQUENTIALLY here (the kernel's
-	// reuseport-group setup races if N sockets bind the same port concurrently),
-	// then hand one to each worker. Kernel load-balances accepts across them.
+	log.Printf("relay-uring (SUT) :%d -> sink %s:%d  workers=%d startcore=%d cores=%v duplex=%v maxconns=%d/worker",
+		*port, *sinkIP, *sinkPort, *workers, *startCore, cores, *duplex, *maxConns)
+
+	// Create every listener SEQUENTIALLY here (the kernel's reuseport-group setup
+	// races if sockets bind the same port concurrently), then hand each worker its
+	// full set. Worker i gets one listener on EVERY port, so each port ends up with
+	// a workers-member reuseport group and the kernel load-balances accepts within
+	// it — the scaling variable stays the worker count, not the port count.
+	if *nPorts < 1 {
+		log.Fatalf("-ports must be >= 1")
+	}
 	for i := 0; i < *workers; i++ {
-		ln, err := rawsock.Listen(c.addr, c.port, 4096)
-		if err != nil {
-			log.Fatalf("listener %d: %v", i, err)
+		lns := make([]*rawsock.Listener, 0, *nPorts)
+		for p := 0; p < *nPorts; p++ {
+			ln, err := rawsock.Listen(c.addr, c.port+p, 4096)
+			if err != nil {
+				log.Fatalf("listener worker=%d port=%d: %v", i, c.port+p, err)
+			}
+			lns = append(lns, ln)
 		}
 		core := -1
-		if *startCore >= 0 {
+		if len(cores) > 0 {
+			core = cores[i]
+		} else if *startCore >= 0 {
 			core = *startCore + i
 		}
-		go worker(i, core, ln, c)
+		go worker(i, core, lns, c)
 	}
 	select {} // workers run forever
 }
 
-// worker is one shared-nothing per-core ring engine.
-func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
+// worker is one shared-nothing per-core ring engine. It owns one listener per
+// listen port; accepts are armed on all of them and the listener index rides in
+// the accept completion's user_data.
+func worker(id, core int, lns []*rawsock.Listener, c *relayCfg) {
 	runtime.LockOSThread()
 	pinToCore(core)
 
@@ -319,10 +368,20 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		}
 	}
 
-	acceptInflight := 0 // bounded-batch accept: keep up to c.acceptBatch in flight
-	postAccept := func() {
-		post(func(s *uring.SQE) { uring.PrepAccept(s, ln.FD, ud(0, opAccept)) })
-		acceptInflight++
+	// Bounded-batch accept, tracked PER LISTENER: the accept completion carries its
+	// listener index in user_data so the batch is topped back up on the port it was
+	// consumed from (a single global counter would let one port starve the others).
+	acceptInflight := make([]int, len(lns))
+	totalAccepts := 0
+	postAccept := func(k int) {
+		post(func(s *uring.SQE) { uring.PrepAccept(s, lns[k].FD, ud(uint64(k), opAccept)) })
+		acceptInflight[k]++
+		totalAccepts++
+	}
+	// Split the batch across ports, but never below 1 in flight per port.
+	perLn := c.acceptBatch / len(lns)
+	if perLn < 1 {
+		perLn = 1
 	}
 	postEventfd := func() {
 		post(func(s *uring.SQE) { uring.PrepRead(s, br.efd, efdBuf, ud(0, opEventfd)) })
@@ -332,7 +391,9 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		post(func(s *uring.SQE) { uring.PrepTimeout(s, &tspec, ud(0, opTimeout)) })
 	}
 
-	postAccept()
+	for k := range lns {
+		postAccept(k)
+	}
 	postEventfd()
 	postTimeout()
 
@@ -350,12 +411,17 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 			res := cqe.Res
 			switch op {
 			case opAccept:
-				acceptInflight-- // this accept SQE consumed; main loop tops the batch back up
+				// cid is the listener index for accept completions, not a conn id.
+				if int(cid) < len(acceptInflight) {
+					acceptInflight[cid]--
+				}
+				totalAccepts-- // this accept SQE consumed; main loop tops the batch back up
 				if res < 0 {
 					errs++
 					break
 				}
 				accepted++
+				gAccepted.Add(1)
 				if len(conns) >= c.maxConns {
 					shed++
 					post(func(s *uring.SQE) { uring.PrepClose(s, int(res), ud(0, opClose)) })
@@ -639,8 +705,10 @@ func worker(id, core int, ln *rawsock.Listener, c *relayCfg) {
 		// Top the accept batch back up: keep up to acceptBatch accepts in flight,
 		// bounded so live+inflight never exceeds the cap (backpressure) and the
 		// batch stays tiny vs the CQ (flood-safe — no CQ overflow).
-		for acceptInflight < c.acceptBatch && len(conns)+acceptInflight < c.maxConns {
-			postAccept()
+		for k := range lns {
+			for acceptInflight[k] < perLn && len(conns)+totalAccepts < c.maxConns {
+				postAccept(k)
+			}
 		}
 
 		if id == 0 && time.Since(lastLog) >= 2*time.Second {

@@ -8,6 +8,11 @@
 //
 //	curl -s "http://<BOX2_IP>:9200/run?inflight=512&duration=90s&warmup=5s" > uring_loadgen.json
 //
+// Query knobs mirror storm.Config: relay, reqlen, replylen, inflight, warmup,
+// duration, junkpct, srcips. junkpct is the connect-flood mix (93 = the ISP
+// incident profile) — without it the storm is a clean stream and does not
+// reproduce the collapse the saturation sweep is looking for.
+//
 // It optionally hosts the sink in-process (so box 2 is one command) and runs one
 // storm at a time. Infrastructure (never the SUT) — uses net/http freely.
 //
@@ -36,6 +41,7 @@ func main() {
 	reqLen := flag.Int("reqlen", proto.DefaultReqLen, "default request bytes")
 	replyLen := flag.Int("replylen", proto.DefaultReplyLen, "default reply bytes")
 	srcSpec := flag.String("srcips", "auto", `source IPs to spread the storm across: "auto" (all global IPs on this box), "" (kernel default), or a csv list; overridable per request via ?srcips=`)
+	junkPct := flag.Int("junkpct", 0, "default %% of connections that are zero-byte connect-flood junk (connect->close, never reaches upstream); overridable per request via ?junkpct=")
 	flag.Parse()
 
 	srcIPs, err := storm.ResolveSrcIPs(*srcSpec)
@@ -81,13 +87,21 @@ func main() {
 			InFlight: qint(q, "inflight", 512),
 			Warmup:   qdur(q, "warmup", 5*time.Second),
 			Duration: qdur(q, "duration", 90*time.Second),
+			JunkPct:  qint(q, "junkpct", *junkPct),
 			SrcIPs:   sips,
 		}
 		if cfg.Relay == "" {
 			http.Error(w, "no relay target: set -relay on the daemon or ?relay=ip:port", http.StatusBadRequest)
 			return
 		}
-		log.Printf("/run relay=%s inflight=%d warmup=%v duration=%v srcips=%d", cfg.Relay, cfg.InFlight, cfg.Warmup, cfg.Duration, len(cfg.SrcIPs))
+		// JunkPct is what makes the storm the connect-flood profile rather than a
+		// clean stream — the incident workload. Reject an out-of-range value loudly
+		// instead of silently running a different experiment than the one asked for.
+		if cfg.JunkPct < 0 || cfg.JunkPct > 100 {
+			http.Error(w, "junkpct must be 0..100", http.StatusBadRequest)
+			return
+		}
+		log.Printf("/run relay=%s inflight=%d warmup=%v duration=%v junkpct=%d srcips=%d", cfg.Relay, cfg.InFlight, cfg.Warmup, cfg.Duration, cfg.JunkPct, len(cfg.SrcIPs))
 		res := storm.Run(cfg)
 		log.Printf("/run done: completed=%d conn/s=%.0f p99=%.0fus auditFail=%d",
 			res.Completed, res.ConnPerSec, res.P99us, res.AuditFail)

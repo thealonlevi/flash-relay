@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,12 @@ import (
 
 // Config is one storm run.
 type Config struct {
+	// Relay is the target, either "ip:port" or a port SPAN "ip:18000-18015".
+	// A span matters when this box has few source IPs: one
+	// (srcIP,dstIP,dstPort) 4-tuple caps near ~64k ephemeral ports, so a
+	// single-IP loadgen tops out around that rate no matter how many cores it
+	// has. Each extra destination port buys another full port space, which is
+	// the only lever available when extra source IPs are not.
 	Relay    string
 	ReqLen   int
 	ReplyLen int
@@ -64,6 +71,11 @@ func Run(cfg Config) Result {
 	req := proto.Request(cfg.ReqLen)
 	wantReply := proto.Reply(cfg.ReplyLen)
 
+	targets, err := ExpandTargets(cfg.Relay)
+	if err != nil || len(targets) == 0 {
+		return Result{Relay: cfg.Relay, Errors: 1}
+	}
+
 	var completed, junk, errs, auditFail atomic.Uint64
 	var measuring atomic.Bool
 	stop := make(chan struct{})
@@ -73,7 +85,7 @@ func Run(cfg Config) Result {
 	// Keep only source IPs of the relay's address family — binding a v6 source
 	// to a v4 relay (or vice versa) fails every dial.
 	relayIsV4 := true
-	if ra, err := net.ResolveTCPAddr("tcp", cfg.Relay); err == nil && ra.IP != nil {
+	if ra, err := net.ResolveTCPAddr("tcp", targets[0]); err == nil && ra.IP != nil {
 		relayIsV4 = ra.IP.To4() != nil
 	}
 	var laddrs []*net.TCPAddr
@@ -98,6 +110,9 @@ func Run(cfg Config) Result {
 			if len(laddrs) > 0 {
 				dialer.LocalAddr = laddrs[w%len(laddrs)]
 			}
+			// Spread workers over the destination ports so the ephemeral-port
+			// space actually used is len(targets) x 64k rather than one port's.
+			target := targets[w%len(targets)]
 			buf := make([]byte, cfg.ReplyLen)
 			rng := rand.New(rand.NewSource(int64(w)*2654435761 + 1))
 			for {
@@ -109,7 +124,7 @@ func Run(cfg Config) Result {
 				// Junk: zero-byte connect-flood — connect then close, no request,
 				// never reaches upstream. Models the 93%-junk ISP incident.
 				if cfg.JunkPct > 0 && rng.Intn(100) < cfg.JunkPct {
-					c, err := dialer.Dial("tcp", cfg.Relay) // source-IP-spread + timeout
+					c, err := dialer.Dial("tcp", target) // source-IP + dst-port spread, timeout
 					if err != nil {
 						errs.Add(1)
 						continue
@@ -121,7 +136,7 @@ func Run(cfg Config) Result {
 					continue
 				}
 				t0 := time.Now()
-				c, err := dialer.Dial("tcp", cfg.Relay)
+				c, err := dialer.Dial("tcp", target)
 				if err != nil {
 					errs.Add(1)
 					continue
@@ -177,6 +192,44 @@ func Run(cfg Config) Result {
 		Samples: len(all),
 		SrcIPs:  cfg.SrcIPs,
 	}
+}
+
+// ExpandTargets expands a relay spec into concrete "ip:port" dial targets:
+//
+//	"10.0.0.1:18000"        -> ["10.0.0.1:18000"]
+//	"10.0.0.1:18000-18003"  -> ["10.0.0.1:18000" ... "10.0.0.1:18003"]
+//
+// The span form exists to multiply the client's usable ephemeral-port space when
+// extra source IPs are not available; see Config.Relay.
+func ExpandTargets(spec string) ([]string, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return nil, fmt.Errorf("empty relay target")
+	}
+	host, portPart, err := net.SplitHostPort(spec)
+	if err != nil {
+		return nil, fmt.Errorf("relay %q: %w", spec, err)
+	}
+	lo, hi := portPart, portPart
+	if i := strings.IndexByte(portPart, '-'); i >= 0 {
+		lo, hi = portPart[:i], portPart[i+1:]
+	}
+	a, err := strconv.Atoi(lo)
+	if err != nil {
+		return nil, fmt.Errorf("relay %q: bad port %q", spec, lo)
+	}
+	b, err := strconv.Atoi(hi)
+	if err != nil {
+		return nil, fmt.Errorf("relay %q: bad port %q", spec, hi)
+	}
+	if b < a {
+		return nil, fmt.Errorf("relay %q: port span end %d is below start %d", spec, b, a)
+	}
+	var out []string
+	for p := a; p <= b; p++ {
+		out = append(out, net.JoinHostPort(host, strconv.Itoa(p)))
+	}
+	return out, nil
 }
 
 // ResolveSrcIPs expands a source-IP spec into concrete local IPs to bind to:
