@@ -6,8 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A pure-Go (`CGO_ENABLED=0`, `linux && amd64`) io_uring TCP relay engine: accept client →
 run a caller-supplied decision hook (may block; does auth + dials upstream) → adopt the
-returned upstream fd → splice client↔upstream with correct half-close. The defining
+returned upstream fd → relay client↔upstream with correct half-close. The defining
 property is **zero Go netpoller on any data-plane fd**.
+
+Module `github.com/thealonlevi/flash-relay`; the importable package is the `flashrelay/`
+subdirectory, not the repo root. Every library file needs the `//go:build linux && amd64`
+tag.
+
+The library's data path is **buffered `recv`/`send` on the ring, not `splice(2)`** — on
+the CPU-bound loopback regime splice measured no better, so the simpler path shipped. A
+real `IORING_OP_SPLICE` relay exists only in the research SUT
+(`research/gate/cmd/relay-uring -splice`), for validating the copy-bound win on real
+NICs. Don't go looking for splice in `flashrelay/`; `internal/uring` exposes `PrepSplice`
+for the SUT's use.
 
 Two trees live here and they are not peers:
 - **the library** (`flashrelay/`, `internal/`) — the distilled, shippable artifact.
@@ -80,6 +91,25 @@ counters.
 Connections are **map entries, not goroutines**. All state machine transitions happen in
 one `switch op` over harvested CQEs. `user_data` packs `connID<<8 | opType` (`ud`/`unpack`).
 
+The op set *is* the connection lifecycle — read the `const` block at the top of
+`worker.go` before the switch:
+
+```
+opAccept ──> opRecvReq ──> [hook, off-ring] ──> opRejectSend ──> opClose      (Reject)
+                 ^                          └─> opReplyMore ──┘               (More: reply, read again)
+                 └──────────────────────────┘
+                                            └─> opReplyClient ─> opSendUp ──> duplex
+                                                                              (opC2URecv/opC2USend,
+                                                                               opU2CRecv/opU2CSend)
+opEventfd = the hook bridge wake; opTimeout = the always-armed 100 ms tick (idle sweep).
+```
+
+Per-conn bookkeeping that is easy to break: `initSent`/`replyOff`/`c2uOff`/`u2cOff` are
+**partial-send progress** cursors (a short `send` re-arms from the cursor, it is not an
+error); `clientReadDone`/`upstreamReadDone` drive half-close; `closesLeft` counts the
+outstanding `opClose` CQEs so teardown fires once; `relayStarted` + `counted` enforce the
+`Stats` partition (non-negotiable 7).
+
 **The off-ring hook bridge** is the one place with cross-goroutine coordination: the ring
 worker pushes a `job` onto a channel, a pool goroutine runs the (blocking) user `Hook`
 and pushes the `hookResult` back, waking the ring via an eventfd. Wakeups are
@@ -135,6 +165,23 @@ calling OS thread via the Go scheduler rather than registering with epoll.
    (`Completed`/`Rejected`/`Shed`/`IdleClosed`/`Errors`), enforced by `conn.counted` +
    `conn.relayStarted`. A new teardown path must charge itself to exactly one bucket —
    `TestStatsTerminalBuckets` asserts the identity.
+
+Non-negotiables 5–7 each have a test that asserts them; if you change that area, those
+are the tests to run and keep green: `TestRejectWithUpstreamFDNoLeak` (ignored
+`UpstreamFD` is closed), `TestSlowHookIdleCloseNoLeak` (hook result outliving its conn),
+`TestStatsTerminalBuckets` (the partition identity), `TestHookMoreExceedsMaxReqLen` +
+`TestHookConsumedNotForwarded` (the `More`/`Consumed` contract).
+
+## Where to look
+
+| Question | File |
+|---|---|
+| Public API semantics, `More`/`Consumed`, `Config` defaults | `docs/API.md` |
+| Running it on a real box: sysctls, systemd, fd sizing, seccomp | `docs/DEPLOYMENT.md` |
+| What was measured, at what grade, and the caveats | `docs/RIPTIDE-HANDOFF.md` |
+| The measurement contract (topology, hook cost, pass/fail) | `research/gate/DESIGN.md` |
+| Rig + optimizer overview; the locked rules of the game | `research/README.md`, `research/optimizer/config` |
+| Fingerprint design, per-profile capture provenance, cost | `fingerprint/RESEARCH.md`, `fingerprint/README.md`, `fingerprint/BENCHMARK.md` |
 
 ## Measurement discipline
 
