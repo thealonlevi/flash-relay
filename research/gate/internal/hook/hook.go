@@ -12,6 +12,7 @@ package hook
 import (
 	"math"
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/thealonlevi/flash-relay/internal/rawsock"
@@ -45,7 +46,36 @@ type Config struct {
 	Delay    DelayFunc     // ms-scale async dial park (NoDelay for headline)
 	SinkIP   string        // upstream sink address
 	SinkPort int
-	Mark     int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
+	// SinkPorts spreads the upstream dial across SinkPort..SinkPort+SinkPorts-1.
+	// 0 or 1 = single port.
+	//
+	// WHY THIS EXISTS. The relay dials upstream once per connection, and with one
+	// destination port every dial shares ONE (srcIP,dstIP,dstPort) 4-tuple, which
+	// caps near 64k ephemeral ports. Measured 2-box: at 24,407 dials/s the box
+	// accumulated 285,035 TIME_WAIT sockets and throughput collapsed from 33,825 to
+	// 1,086 conn/s — the port allocator, not the relay. The client side already
+	// spreads across a port span; this is the symmetric half for the upstream leg.
+	SinkPorts int
+	Mark      int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
+	// dialSeq round-robins the destination port. Per-Config, and the hook pool
+	// shares one Config, so it must be atomic.
+	dialSeq *atomic.Uint64
+}
+
+// Init prepares per-Config mutable state. Call once before sharing a Config
+// across hook goroutines.
+func (c *Config) Init() {
+	if c.dialSeq == nil {
+		c.dialSeq = new(atomic.Uint64)
+	}
+}
+
+// sinkPortFor picks this dial's destination port.
+func (c Config) sinkPortFor() int {
+	if c.SinkPorts <= 1 || c.dialSeq == nil {
+		return c.SinkPort
+	}
+	return c.SinkPort + int(c.dialSeq.Add(1)%uint64(c.SinkPorts))
 }
 
 // Spin burns d of CPU time in a busy-loop (it must compete for the core, so it
@@ -69,5 +99,5 @@ func (c Config) Decide() (int, error) {
 			time.Sleep(d) // parks THIS goroutine (off-ring), not the ring worker
 		}
 	}
-	return rawsock.DialMark(c.SinkIP, c.SinkPort, c.Mark)
+	return rawsock.DialMark(c.SinkIP, c.sinkPortFor(), c.Mark)
 }

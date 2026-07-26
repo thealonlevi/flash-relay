@@ -25,7 +25,12 @@ fi
 BOX1_IP=${BOX1_IP:?set BOX1_IP=<the SUT box IP> (the storm dials it, and it dials our sink)}
 LG_CORES=${LG_CORES:-0-15}      # storm cores. 10-20 is the ask; must out-supply the SUT.
 SINK_CORES=${SINK_CORES:-16-19} # sink cores, DISJOINT from the storm's
-SPORT=${SPORT:-9100}            # sink listen port (the relay dials this)
+SPORT=${SPORT:-9100}            # sink listen port (base of the span; the relay dials this)
+# SINK_PORTS must match the relay's -sinkports. The relay dials upstream once per
+# connection; with ONE destination port every dial shares a single
+# (srcIP,dstIP,dstPort) 4-tuple. Without TIME_WAIT reuse that is 64511 ports over a
+# 60s hold = ~1,075 conn/s, and a 2-box run measured exactly 1,086 before collapsing.
+SINK_PORTS=${SINK_PORTS:-16}
 CONTROL=${CONTROL:-9200}        # loadgend control port (box 1 drives the run through it)
 RPORT=${RPORT:-18000}           # the relay's listen port on box 1 (base of the span)
 PORTS=${PORTS:-16}              # relay listen-port span; must match the sweep's PORTS
@@ -44,7 +49,11 @@ cat > /etc/sysctl.d/99-flashrelay-bench.conf <<EOF
 net.ipv4.ip_local_port_range = 1024 65535
 # Reserve the fixed ports we listen on, or the (now very wide) ephemeral allocator
 # can grab 9100/9200 as a source port and the next bind fails with EADDRINUSE.
-net.ipv4.ip_local_reserved_ports = $SPORT,$CONTROL,$RPORT-$(( RPORT + PORTS - 1 ))
+net.ipv4.ip_local_reserved_ports = $SPORT-$(( SPORT + SINK_PORTS - 1 )),$CONTROL,$RPORT-$(( RPORT + PORTS - 1 ))
+# TIME_WAIT reuse needs timestamps on BOTH ends. If this box does not send them,
+# the SUT cannot reuse TIME_WAIT for its upstream dials and is hard-capped at
+# ~1,075 conn/s per destination port no matter how much CPU either box has.
+net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_tw_reuse = 1
 net.ipv4.tcp_fin_timeout = 10
 net.core.somaxconn = 65535
@@ -99,8 +108,8 @@ ulimit -n 1048576
 
 # The sink runs SEPARATELY (loadgend -sink "") so it gets its own cores. Hosting it
 # in-process would put upstream-side work inside the storm's core budget.
-taskset -c "$SINK_CORES" "$BINDIR/sink" -addr "0.0.0.0:$SPORT" -reqlen 64 -replylen 256 \
-  > /var/log/flashrelay-sink.log 2>&1 &
+taskset -c "$SINK_CORES" "$BINDIR/sink" -addr "0.0.0.0:$SPORT" -ports "$SINK_PORTS" \
+  -reqlen 64 -replylen 256 > /var/log/flashrelay-sink.log 2>&1 &
 sleep 1
 RSPEC="$BOX1_IP:$RPORT"; [ "$PORTS" -gt 1 ] && RSPEC="$BOX1_IP:$RPORT-$(( RPORT + PORTS - 1 ))"
 taskset -c "$LG_CORES" "$BINDIR/loadgend" -control "0.0.0.0:$CONTROL" -sink "" \
@@ -110,7 +119,9 @@ sleep 2
 
 echo
 echo "=== 5. verify ==="
-pgrep -x sink     >/dev/null && echo "  sink     up (:$SPORT, cores $SINK_CORES)"   || { echo "  !! sink failed:"; tail -5 /var/log/flashrelay-sink.log; }
+pgrep -x sink     >/dev/null && echo "  sink     up (:$SPORT-$(( SPORT + SINK_PORTS - 1 )), cores $SINK_CORES)" || { echo "  !! sink failed:"; tail -5 /var/log/flashrelay-sink.log; }
+echo "  sink ports listening: $(ss -lnt 2>/dev/null | grep -cE ":($(seq -s'|' "$SPORT" $(( SPORT + SINK_PORTS - 1 ))))\\b") / $SINK_PORTS"
+echo "  tcp_timestamps: $(cat /proc/sys/net/ipv4/tcp_timestamps) (must be 1, or the SUT cannot reuse TIME_WAIT on its upstream dials)"
 pgrep -x loadgend >/dev/null && echo "  loadgend up (:$CONTROL, cores $LG_CORES)"    || { echo "  !! loadgend failed:"; tail -5 /var/log/flashrelay-loadgend.log; }
 echo -n "  /health: "; curl -fs --max-time 3 "http://127.0.0.1:$CONTROL/health" || echo "NO RESPONSE"
 echo -n "  storm source IPs: "; curl -fs --max-time 3 "http://127.0.0.1:$CONTROL/srcips" || echo "?"

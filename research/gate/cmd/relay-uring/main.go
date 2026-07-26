@@ -27,10 +27,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/thealonlevi/flash-relay/research/gate/internal/hook"
-	"github.com/thealonlevi/flash-relay/research/gate/internal/proto"
 	"github.com/thealonlevi/flash-relay/internal/rawsock"
 	"github.com/thealonlevi/flash-relay/internal/uring"
+	"github.com/thealonlevi/flash-relay/research/gate/internal/hook"
+	"github.com/thealonlevi/flash-relay/research/gate/internal/proto"
 )
 
 const (
@@ -157,6 +157,7 @@ func (b *bridge) drain() []hookResult {
 type relayCfg struct {
 	addr, sinkIP      string
 	port, sinkPort    int
+	sinkPorts         int
 	reqLen, replyLen  int
 	authCPU           time.Duration
 	delay             hook.DelayFunc
@@ -193,6 +194,7 @@ func main() {
 	startCore := flag.Int("startcore", -1, "pin worker i to core startcore+i (-1 = no pinning)")
 	coreList := flag.String("cores", "", "explicit csv core list: pin worker i to cores[i] (overrides -startcore). Needed because -startcore assumes CONTIGUOUS cores, which is wrong on an interleaved multi-socket box and for any NUMA-spanning placement — see harness/topology.sh")
 	nPorts := flag.Int("ports", 1, "listen on this many consecutive ports starting at -port. EVERY worker binds EVERY port, so each port keeps a full N-member SO_REUSEPORT group (the accept-path contention under test is preserved) while the client gains a fresh ~64k ephemeral-port space per port. Needed when the load box has few source IPs: one (srcIP,dstIP,dstPort) 4-tuple caps near 64k, which otherwise caps the whole sweep well below the relay's real ceiling.")
+	sinkPorts := flag.Int("sinkports", 1, "spread upstream dials across -sinkport..+N-1. One destination port means every dial shares ONE (srcIP,dstIP,dstPort) 4-tuple, capped near 64k ephemeral ports: measured 2-box, 24,407 dials/s accumulated 285k TIME_WAIT and collapsed 33,825->1,086 conn/s. The sink must listen on the same span.")
 	fpMark := flag.Int("fpmark", 0, "SO_MARK to set on upstream dials (TCP fingerprint profile for the fingerprint/ tc-egress eBPF; 0=none, 1=Windows)")
 	flag.Parse()
 
@@ -201,7 +203,7 @@ func main() {
 		delay = hook.Lognormal(*dialP50, *dialSigma, *dialCap, 1)
 	}
 	c := &relayCfg{
-		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort,
+		addr: *addr, sinkIP: *sinkIP, port: *port, sinkPort: *sinkPort, sinkPorts: *sinkPorts,
 		reqLen: *reqLen, replyLen: *replyLen, authCPU: *authCPU, delay: delay,
 		ringSize: *ringSize, hookWorkers: *hookWorkers, duplex: *duplex, splice: *splice,
 		bufSize: *bufSize, maxConns: *maxConns, acceptBatch: *acceptBatch, fpMark: *fpMark,
@@ -280,7 +282,8 @@ func worker(id, core int, lns []*rawsock.Listener, c *relayCfg) {
 		log.Fatalf("worker %d eventfd2: %v", id, errno)
 	}
 	br := &bridge{efd: int(efd)}
-	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort, Mark: c.fpMark}
+	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort, SinkPorts: c.sinkPorts, Mark: c.fpMark}
+	hcfg.Init()
 	jobs := make(chan uint64, 1<<16)
 	for i := 0; i < c.hookWorkers; i++ {
 		go func() {

@@ -54,6 +54,11 @@ RAMP=${RAMP:-8}
 REQLEN=${REQLEN:-64}
 REPLYLEN=${REPLYLEN:-256}
 AUTHCPU=${AUTHCPU:-5us}
+# SRCIPS pins which of the load box's source IPs the storm binds to. Default
+# "auto" on the daemon takes EVERY global IP there, which silently includes private
+# addresses the SUT box has no route to — those workers then fail every dial and
+# the losses read as path loss. Set this to the IPs that can actually reach here.
+SRCIPS=${SRCIPS:-}
 RELAY_NUMA=${RELAY_NUMA:-single}   # single = one socket (isolates the accept lock) | both = span sockets (NUMA)
 RELAY_NODE=${RELAY_NODE:-0}
 IFACE=${IFACE:-$(ip -o route get "$B2" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -1)}
@@ -146,6 +151,7 @@ for N in $SWEEP; do
   RSPEC="$BOX1_IP:$RPORT"; [ "$PORTS" -gt 1 ] && RSPEC="$BOX1_IP:$RPORT-$RPORT_END"
   url="http://$B2:$CONTROL/run?relay=$RSPEC&inflight=$INFLIGHT&junkpct=$JUNK"
   url="$url&warmup=${SWARM}s&duration=${STORM_DUR}s&reqlen=$REQLEN&replylen=$REPLYLEN"
+  [ -n "$SRCIPS" ] && url="$url&srcips=$SRCIPS"
   if [ "$DRYRUN" = 1 ]; then
     echo "  storm: $url" | tee -a "$RESULT"
     echo "  (dry run: placement + URL only, nothing executed)" | tee -a "$RESULT"
