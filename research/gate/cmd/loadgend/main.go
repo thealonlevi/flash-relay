@@ -98,14 +98,15 @@ func main() {
 			sips = got
 		}
 		cfg := storm.Config{
-			Relay:    qstr(q, "relay", *relay),
-			ReqLen:   qint(q, "reqlen", *reqLen),
-			ReplyLen: qint(q, "replylen", *replyLen),
-			InFlight: qint(q, "inflight", 512),
-			Warmup:   qdur(q, "warmup", 5*time.Second),
-			Duration: qdur(q, "duration", 90*time.Second),
-			JunkPct:  qint(q, "junkpct", *junkPct),
-			SrcIPs:   sips,
+			Relay:      qstr(q, "relay", *relay),
+			ReqLen:     qint(q, "reqlen", *reqLen),
+			ReplyLen:   qint(q, "replylen", *replyLen),
+			InFlight:   qint(q, "inflight", 512),
+			Warmup:     qdur(q, "warmup", 5*time.Second),
+			Duration:   qdur(q, "duration", 90*time.Second),
+			JunkPct:    qint(q, "junkpct", *junkPct),
+			JunkViaNet: qstr(q, "junknet", "") == "1",
+			SrcIPs:     sips,
 		}
 		if cfg.Relay == "" {
 			http.Error(w, "no relay target: set -relay on the daemon or ?relay=ip:port", http.StatusBadRequest)

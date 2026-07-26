@@ -27,6 +27,7 @@ func main() {
 	warmup := flag.Duration("warmup", 2*time.Second, "warmup before timing")
 	junkPct := flag.Int("junkpct", 0, "%% zero-byte connect-flood junk connections (connect→close, never dial upstream)")
 	srcSpec := flag.String("srcips", "", `source IPs to spread connections across: "auto" (all global IPs), "" (kernel default), or a csv list`)
+	junkViaNet := flag.Bool("junknet", false, "route junk connections through net.Dial instead of the netpoller-free raw-syscall path (slower; for A/B only)")
 	flag.Parse()
 
 	srcIPs, err := storm.ResolveSrcIPs(*srcSpec)
@@ -37,6 +38,7 @@ func main() {
 	res := storm.Run(storm.Config{
 		Relay: *relay, ReqLen: *reqLen, ReplyLen: *replyLen,
 		InFlight: *inflight, Warmup: *warmup, Duration: *dur, JunkPct: *junkPct, SrcIPs: srcIPs,
+		JunkViaNet: *junkViaNet,
 	})
 	if res.AuditFail > 0 {
 		log.Printf("WARNING: %d byte-audit failures — run is INVALID", res.AuditFail)

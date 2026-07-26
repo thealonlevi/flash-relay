@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/thealonlevi/flash-relay/research/gate/internal/proto"
@@ -47,6 +48,12 @@ type Config struct {
 	// one-storm-at-a-time lock with no remote way to clear it, which strands a
 	// multi-point sweep that has to fire many storms in sequence.
 	Cancel <-chan struct{}
+	// JunkViaNet forces junk connections back through net.Dial instead of the
+	// netpoller-free raw-syscall path (see rawjunk.go). Default (false) is the raw
+	// path, which is strictly cheaper per connection; this exists so the two can be
+	// A/B'd on the same rig, since a change in the LOAD GENERATOR changes every
+	// number the sweep produces and should be provable, not asserted.
+	JunkViaNet bool
 }
 
 // Result is the measured outcome (JSON-tagged to match the loadgen output that
@@ -94,12 +101,30 @@ func Run(cfg Config) Result {
 		relayIsV4 = ra.IP.To4() != nil
 	}
 	var laddrs []*net.TCPAddr
+	var rawSrc []syscall.Sockaddr // parallel to laddrs, for the raw junk path
 	for _, ip := range cfg.SrcIPs {
 		pip := net.ParseIP(ip)
 		if pip == nil || (pip.To4() != nil) != relayIsV4 {
 			continue
 		}
 		laddrs = append(laddrs, &net.TCPAddr{IP: pip})
+		sa, _, err := resolveSource(ip)
+		if err != nil {
+			return Result{Relay: cfg.Relay, Errors: 1}
+		}
+		rawSrc = append(rawSrc, sa)
+	}
+
+	// Pre-resolve every destination once. Doing this per connection would put
+	// parsing on the hot path of the very thing being made cheaper.
+	rawDst := make([]syscall.Sockaddr, len(targets))
+	rawDom := make([]int, len(targets))
+	for i, t := range targets {
+		sa, dom, err := resolveTarget(t)
+		if err != nil {
+			return Result{Relay: cfg.Relay, Errors: 1}
+		}
+		rawDst[i], rawDom[i] = sa, dom
 	}
 
 	lat := make([][]int64, cfg.InFlight) // per-worker, merged at end (no contention)
@@ -117,7 +142,13 @@ func Run(cfg Config) Result {
 			}
 			// Spread workers over the destination ports so the ephemeral-port
 			// space actually used is len(targets) x 64k rather than one port's.
-			target := targets[w%len(targets)]
+			ti := w % len(targets)
+			target := targets[ti]
+			jDst, jDom := rawDst[ti], rawDom[ti]
+			var jSrc syscall.Sockaddr
+			if len(rawSrc) > 0 {
+				jSrc = rawSrc[w%len(rawSrc)]
+			}
 			buf := make([]byte, cfg.ReplyLen)
 			rng := rand.New(rand.NewSource(int64(w)*2654435761 + 1))
 			for {
@@ -129,12 +160,20 @@ func Run(cfg Config) Result {
 				// Junk: zero-byte connect-flood — connect then close, no request,
 				// never reaches upstream. Models the 93%-junk ISP incident.
 				if cfg.JunkPct > 0 && rng.Intn(100) < cfg.JunkPct {
-					c, err := dialer.Dial("tcp", target) // source-IP + dst-port spread, timeout
+					var err error
+					if cfg.JunkViaNet {
+						var c net.Conn
+						if c, err = dialer.Dial("tcp", target); err == nil {
+							c.Close()
+						}
+					} else {
+						// Raw path: socket+connect+close, no epoll registration.
+						err = junkDial(jDom, jDst, jSrc)
+					}
 					if err != nil {
 						errs.Add(1)
 						continue
 					}
-					c.Close()
 					if measuring.Load() {
 						junk.Add(1)
 					}
