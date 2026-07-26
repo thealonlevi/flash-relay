@@ -7,6 +7,7 @@
 package sinksrv
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -92,7 +93,24 @@ func ListenAndServe(addr string, reqLen, replyLen int, statsPath string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("sink listening on %s (reqlen=%d replylen=%d)", addr, reqLen, replyLen)
+	return ServeAll([]net.Listener{ln}, reqLen, replyLen, statsPath)
+}
+
+// ServeAll serves the sink protocol on EVERY listener, sharing one set of counters
+// and one log ticker. Blocks until a listener fails fatally.
+//
+// The listeners are passed in already bound, deliberately: the caller binds the
+// whole port span up front so a single unavailable port fails fast and visibly,
+// instead of some listeners serving while another dies and takes the process with
+// it. A partially-bound sink is worse than none — the relay would dial a port
+// nobody is listening on and the refused connections would read as relay errors.
+func ServeAll(lns []net.Listener, reqLen, replyLen int, statsPath string) error {
+	if len(lns) == 0 {
+		return errors.New("sinksrv: no listeners")
+	}
+	for _, ln := range lns {
+		log.Printf("sink listening on %s (reqlen=%d replylen=%d)", ln.Addr(), reqLen, replyLen)
+	}
 
 	want := proto.Request(reqLen)
 	reply := proto.Reply(replyLen)
@@ -110,33 +128,39 @@ func ListenAndServe(addr string, reqLen, replyLen int, statsPath string) error {
 		}()
 	}
 
-	for {
-		c, err := ln.Accept()
-		if err != nil {
-			log.Printf("accept: %v", err)
-			continue
-		}
-		go func(c net.Conn) {
-			defer c.Close()
-			// Deadline, or a peer that opens and never sends a full request parks
-			// this goroutine forever holding an fd. That is not hypothetical: under
-			// a connect-flood over a lossy path the client's FIN can be dropped, and
-			// the sink then accumulates stuck-ESTABLISHED connections until it
-			// degrades — silently corrupting whatever it is measuring for.
-			_ = c.SetDeadline(time.Now().Add(30 * time.Second))
-			buf := make([]byte, len(want))
-			if _, err := io.ReadFull(c, buf); err != nil {
-				errs.Add(1)
-				return
+	fatal := make(chan error, len(lns))
+	for _, ln := range lns {
+		go func(ln net.Listener) {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					log.Printf("accept on %s: %v", ln.Addr(), err)
+					continue
+				}
+				go func(c net.Conn) {
+					defer c.Close()
+					// Deadline, or a peer that opens and never sends a full request parks
+					// this goroutine forever holding an fd. That is not hypothetical: under
+					// a connect-flood over a lossy path the client's FIN can be dropped, and
+					// the sink then accumulates stuck-ESTABLISHED connections until it
+					// degrades — silently corrupting whatever it is measuring for.
+					_ = c.SetDeadline(time.Now().Add(30 * time.Second))
+					buf := make([]byte, len(want))
+					if _, err := io.ReadFull(c, buf); err != nil {
+						errs.Add(1)
+						return
+					}
+					if !proto.Equal(buf, want) {
+						auditFail.Add(1)
+					}
+					if _, err := c.Write(reply); err != nil {
+						errs.Add(1)
+						return
+					}
+					served.Add(1)
+				}(c)
 			}
-			if !proto.Equal(buf, want) {
-				auditFail.Add(1)
-			}
-			if _, err := c.Write(reply); err != nil {
-				errs.Add(1)
-				return
-			}
-			served.Add(1)
-		}(c)
+		}(ln)
 	}
+	return <-fatal
 }

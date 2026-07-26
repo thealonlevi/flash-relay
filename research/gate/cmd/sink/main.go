@@ -35,21 +35,34 @@ func main() {
 		log.Fatalf("addr %q: bad port: %v", *addr, err)
 	}
 
-	errc := make(chan error, *ports)
+	if *echo {
+		if *ports != 1 {
+			log.Fatalf("-echo supports a single port")
+		}
+		log.Fatal(sinksrv.ListenAndServeEcho(*addr, *statsFile))
+	}
+
+	// Bind the WHOLE span before serving anything. Binding lazily per goroutine
+	// meant one unavailable port killed the process after other listeners were
+	// already up, leaving the operator with a dead sink and a partial log. A
+	// partially-bound sink is the worse failure anyway: the relay would dial a port
+	// nobody listens on and the refused connections would read as relay errors.
+	lns := make([]net.Listener, 0, *ports)
 	for p := 0; p < *ports; p++ {
 		a := net.JoinHostPort(host, strconv.Itoa(base+p))
-		go func(a string) {
-			if *echo {
-				errc <- sinksrv.ListenAndServeEcho(a, *statsFile)
-				return
+		ln, err := net.Listen("tcp", a)
+		if err != nil {
+			for _, l := range lns {
+				l.Close()
 			}
-			// Only the first listener owns statsFile, or they clobber each other.
-			sf := ""
-			if a == net.JoinHostPort(host, portStr) {
-				sf = *statsFile
-			}
-			errc <- sinksrv.ListenAndServe(a, *reqLen, *replyLen, sf)
-		}(a)
+			log.Fatalf("sink: bind %s failed: %v\n"+
+				"  A stale connection or another process holds it. Check with:  ss -lntp | grep %d\n"+
+				"  Ports in the span must also be reserved so the ephemeral allocator cannot take them:\n"+
+				"    sysctl -w net.ipv4.ip_local_reserved_ports=%d-%d,...\n"+
+				"  Reserving does NOT evict sockets already bound — wait for them to drain, or move the\n"+
+				"  span with -addr.", a, err, base+p, base, base+*ports-1)
+		}
+		lns = append(lns, ln)
 	}
-	log.Fatal(<-errc)
+	log.Fatal(sinksrv.ServeAll(lns, *reqLen, *replyLen, *statsFile))
 }
