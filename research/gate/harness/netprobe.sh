@@ -85,6 +85,26 @@ post = kv_pairs(read("netstat.post")); post.update(kv_pairs(read("snmp.post")))
 def dk(k):
     return post.get(k, 0) - pre.get(k, 0)
 
+def has(k):
+    """Is this counter actually exported by this kernel?
+
+    Load-bearing. A missing counter previously read as a clean 0, which is the
+    most dangerous possible output: it looks like evidence of absence. Two names
+    used here (TCPTimeWaitReuse, TimeWaitRecycled) turned out not to exist at all,
+    and their permanent 0 was read as 'TIME_WAIT reuse is not happening' and used
+    to blame the wrong host. Absent and zero must never render the same.
+    """
+    return k in post or k in pre
+
+def line_c(label, key, note_fn=None, fmt="{:,}"):
+    """Report a counter, or say plainly that this kernel does not export it."""
+    if not has(key):
+        line(label, "n/a", f"counter {key} not exported by this kernel")
+        return None
+    v = dk(key)
+    line(label, fmt.format(v), note_fn(v) if note_fn else "")
+    return v
+
 # ---- /proc/softirqs and /proc/interrupts: per-CPU columns ---------------------
 def percpu(txt, want):
     """rows matching `want` -> {cpu_index: count}, summed over matching rows."""
@@ -212,10 +232,14 @@ print()
 print("-- 2. upstream dial / ephemeral ports --")
 ao = dk("Tcp.ActiveOpens")
 line("ActiveOpens (upstream dials)", f"{ao:,}", f"{ao/dur:,.0f}/s")
-line("TW recycled (TWRecycled)", f"{dk('TcpExt.TimeWaitRecycled'):,}")
-line("TW reused (TCPTimeWaitReuse)", f"{dk('TcpExt.TCPTimeWaitReuse'):,}")
+line_c("TIME_WAIT sockets created (TW)", "TcpExt.TW")
+line_c("TIME_WAIT recycled (TWRecycled)", "TcpExt.TWRecycled",
+       lambda v: "reuse IS active — the per-tuple ceiling is ~64k/s, not 64k/60s" if v > 0 else
+                 "no reuse in this window: check tcp_tw_reuse and tcp_timestamps on BOTH ends")
+line_c("PAWSEstab (ts rejects)", "TcpExt.PAWSEstab")
 line("sockets in TIME_WAIT (end)", f"{ssb.get('TCP.tw', 0):,}",
-     "near the 64k/tuple ceiling — add sink ports/IPs" if ssb.get('TCP.tw', 0) > 50000 else "")
+     "high — if reuse is inactive this is the ceiling; add sink ports/IPs"
+     if ssb.get('TCP.tw', 0) > 50000 else "")
 line("TCP orphans (end)", f"{ssb.get('TCP.orphan', 0):,}")
 line("sockets alloc (end)", f"{ssb.get('TCP.alloc', 0):,}")
 print()
@@ -287,10 +311,10 @@ if off_soft > 0.10:
 if eth_drop:
     v.append(f"NIC: {sum(eth_drop.values()):,} hardware drops — the card/ring is the "
              f"ceiling, not the relay.")
-if ssb.get('TCP.tw', 0) > 50000:
-    v.append(f"EPHEMERAL PORTS: {ssb['TCP.tw']:,} TIME_WAIT. The relay's upstream dial "
-             f"is near the ~64k/tuple ceiling — add sink ports or IPs, else you are "
-             f"measuring the port allocator.")
+if ssb.get('TCP.tw', 0) > 50000 and has('TcpExt.TWRecycled') and dk('TcpExt.TWRecycled') == 0:
+    v.append(f"EPHEMERAL PORTS: {ssb['TCP.tw']:,} TIME_WAIT and NO recycling in this "
+             f"window. Without reuse a 4-tuple sustains only ~64511/60s ≈ 1,075 conn/s — "
+             f"add sink ports or IPs, or fix tcp_tw_reuse/tcp_timestamps on both ends.")
 if _syn_pct > 2:
     v.append(f"PATH: {_syn_rt:,} SYN retransmits ({_syn_pct:.1f}% of accepts) — either "
              f"this box is dropping SYNs or the path is rate-limiting. Re-run the "
