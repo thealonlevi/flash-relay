@@ -102,10 +102,10 @@ print(f"  !! storm and sink SHARE cores {common} — the sink will eat storm cap
 PY
 
 echo
-echo "=== 3b. sink port span availability ==="
-# Pre-flight the whole span and name whatever holds a port. Without this the sink
-# just reports the first collision and the operator has to go digging; on a shared
-# box the holder is usually an unrelated service, and the fix is to move the span.
+echo "=== 3b. sink port availability (informational — busy ports are skipped) ==="
+# The sink SCANS for free ports rather than demanding a contiguous span, so a busy
+# port here is not fatal. It is still worth reporting: a box with many busy ports in
+# range is running something that will also compete with the test for CPU and NIC.
 BUSY=""
 for p in $(seq "$SPORT" $(( SPORT + SINK_PORTS - 1 ))); do
   if ! python3 - "$p" <<'PY' 2>/dev/null
@@ -123,25 +123,18 @@ PY
     # allocator prefers ODD ports for connect(), so a previous storm's outbound
     # sockets squat exactly the odd ports of any span placed inside
     # ip_local_port_range, and a listening-only query reports "nothing holds it".
-    holder=$(ss -tan 2>/dev/null | awk -v p=":$p\$" '$4 ~ p {print $1; exit}')
-    echo "  port $p BUSY (local socket state: ${holder:-unknown})"
+    holder=$(ss -tanp 2>/dev/null | awk -v p=":$p\$" '$4 ~ p {print $1, $NF; exit}')
+    echo "  port $p busy (${holder:-unknown}) — will be skipped"
   fi
 done
 if [ -n "$BUSY" ]; then
-  echo "  !! span $SPORT-$(( SPORT + SINK_PORTS - 1 )) is not free:$BUSY"
-  echo
-  echo "  Mostly ODD ports? Those are a previous run's OUTBOUND sockets draining, not a"
-  echo "  service: Linux prefers odd ephemeral ports for connect(). The span is now"
-  echo "  reserved (step 1), so nothing new can take it — wait ~60s for TIME_WAIT to"
-  echo "  expire and re-run this script unchanged. That keeps both load boxes on the"
-  echo "  same span, which is simpler for the relay's -sinkips."
-  echo
-  echo "  If it persists, move the span:"
-  echo "    sudo env SPORT=9300 BOX1_IP=$BOX1_IP LG_CORES=$LG_CORES SINK_CORES=$SINK_CORES bash $0"
-  echo "  and tell box 1 the new base — it dials this host as <ip>:<base>."
-  exit 1
+  echo "  ^ the sink scans past these (-portwindow). Mostly ODD ports means another"
+  echo "    process is churning outbound connections here: Linux prefers odd ephemeral"
+  echo "    ports for connect(). If that process is a live proxy, this box is NOT"
+  echo "    dedicated and the run will contend with its traffic."
+else
+  echo "  all $SINK_PORTS ports free from $SPORT"
 fi
-echo "  all $SINK_PORTS ports free ($SPORT-$(( SPORT + SINK_PORTS - 1 )))"
 
 echo
 echo "=== 4. start sink + loadgend (pinned, separate) ==="
@@ -151,8 +144,8 @@ ulimit -n 1048576
 # The sink runs SEPARATELY (loadgend -sink "") so it gets its own cores. Hosting it
 # in-process would put upstream-side work inside the storm's core budget.
 taskset -c "$SINK_CORES" "$BINDIR/sink" -addr "0.0.0.0:$SPORT" -ports "$SINK_PORTS" \
-  -reqlen 64 -replylen 256 > /var/log/flashrelay-sink.log 2>&1 &
-sleep 1
+  -portwindow 512 -reqlen 64 -replylen 256 > /var/log/flashrelay-sink.log 2>&1 &
+sleep 2
 RSPEC="$BOX1_IP:$RPORT"; [ "$PORTS" -gt 1 ] && RSPEC="$BOX1_IP:$RPORT-$(( RPORT + PORTS - 1 ))"
 taskset -c "$LG_CORES" "$BINDIR/loadgend" -control "0.0.0.0:$CONTROL" -sink "" \
   -relay "$RSPEC" -reqlen 64 -replylen 256 -srcips auto \
@@ -162,7 +155,8 @@ sleep 2
 echo
 echo "=== 5. verify ==="
 pgrep -x sink     >/dev/null && echo "  sink     up (:$SPORT-$(( SPORT + SINK_PORTS - 1 )), cores $SINK_CORES)" || { echo "  !! sink failed:"; tail -5 /var/log/flashrelay-sink.log; }
-echo "  sink ports listening: $(ss -lnt 2>/dev/null | grep -cE ":($(seq -s'|' "$SPORT" $(( SPORT + SINK_PORTS - 1 ))))\\b") / $SINK_PORTS"
+BOUND=$(grep -o 'SINK_PORTS_BOUND=[0-9,]*' /var/log/flashrelay-sink.log 2>/dev/null | tail -1 | cut -d= -f2)
+echo "  sink ports bound: $(echo "$BOUND" | tr ',' ' ' | wc -w) / $SINK_PORTS"
 echo "  tcp_timestamps: $(cat /proc/sys/net/ipv4/tcp_timestamps) (must be 1, or the SUT cannot reuse TIME_WAIT on its upstream dials)"
 pgrep -x loadgend >/dev/null && echo "  loadgend up (:$CONTROL, cores $LG_CORES)"    || { echo "  !! loadgend failed:"; tail -5 /var/log/flashrelay-loadgend.log; }
 echo -n "  /health: "; curl -fs --max-time 3 "http://127.0.0.1:$CONTROL/health" || echo "NO RESPONSE"
@@ -172,4 +166,12 @@ echo "Source-IP count matters: one (srcIP -> $BOX1_IP:$RPORT) 4-tuple caps near 
 echo "ports, so each extra IP on this box multiplies the storm's connection-rate"
 echo "headroom. With one IP, expect a hard ceiling around 60k conn/s regardless of cores."
 echo
-echo "Box 2 is ready. Now run the sweep from box 1."
+MYIP=$(ip -o route get "$BOX1_IP" 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
+echo
+echo "=== 6. upstream target list for box 1 ==="
+echo "  Bound ports are NOT necessarily contiguous (busy ones were skipped), so the"
+echo "  relay must be told each one. Paste into -sinkips, with -sinkports 1:"
+echo
+echo "    $(echo "$BOUND" | tr ',' '\n' | sed "s|^|${MYIP:-<this-box-ip>}:|" | paste -sd,)"
+echo
+echo "Box 2 is ready."
