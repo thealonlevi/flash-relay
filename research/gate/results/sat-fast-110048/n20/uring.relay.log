@@ -1,0 +1,13 @@
+2026/07/26 11:05:55 relay-uring (SUT) :31000 -> sink 127.0.0.1:31116  workers=20 startcore=-1 cores=[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19] duplex=false maxconns=50000/worker
+2026/07/26 11:05:57 uring w0 accepted=7741 completed=456 shed=0 errs=7219 live=66 (agg completed=9782)
+2026/07/26 11:05:59 uring w0 accepted=48376 completed=3222 shed=0 errs=45098 live=56 (agg completed=66584)
+2026/07/26 11:06:01 uring w0 accepted=89610 completed=6120 shed=0 errs=83440 live=51 (agg completed=123936)
+2026/07/26 11:06:03 uring w0 accepted=130169 completed=9003 shed=0 errs=121102 live=69 (agg completed=180811)
+2026/07/26 11:06:05 uring w0 accepted=171187 completed=11858 shed=0 errs=159283 live=51 (agg completed=238478)
+2026/07/26 11:06:07 uring w0 accepted=211943 completed=14732 shed=0 errs=197146 live=67 (agg completed=295794)
+2026/07/26 11:06:09 uring w0 accepted=252494 completed=17662 shed=0 errs=234771 live=61 (agg completed=352524)
+2026/07/26 11:06:11 uring w0 accepted=292860 completed=20430 shed=0 errs=272369 live=61 (agg completed=409150)
+2026/07/26 11:06:13 uring w0 accepted=333068 completed=23139 shed=0 errs=309887 live=45 (agg completed=466111)
+2026/07/26 11:06:15 uring w0 accepted=373690 completed=25887 shed=0 errs=347743 live=60 (agg completed=523202)
+2026/07/26 11:06:17 uring w0 accepted=413906 completed=28692 shed=0 errs=385157 live=57 (agg completed=579973)
+2026/07/26 11:06:19 uring w0 accepted=421741 completed=29312 shed=0 errs=392429 live=0 (agg completed=592023)

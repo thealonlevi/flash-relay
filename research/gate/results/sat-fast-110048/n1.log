@@ -1,0 +1,29 @@
+MULTI-CORE TEST  N=1 cores  flood inflight=1200 junk=93%  loopback  2026-07-26T11:00:52Z
+relay cores=0 sink=20 loadgen=21,22  ports r=127.0.0.1:31000-31015 s=31116 (span=16) inflight=1200
+
+>>> netpoll : 1 cores, flood inflight=1200 junk=93%
+   1 cores: CPU=1.09 cores used, conn/s=32,652 (junk=577,042 real=43,354 errs=0)
+   conn/s per core used = 29,956
+     Go scheduler                         2.4%  #
+     kernel lock contention (osq/spin)    4.3%  ##
+     netpoller/epoll                      1.5%  
+     syscall transition                   6.0%  ###
+     io_uring                             0.0%  
+     GC                                   2.1%  #
+     kernel TCP/net                      66.4%  #################################
+     relay code                          16.4%  ########
+     other                                1.0%  
+
+>>> uring : 1 cores, flood inflight=1200 junk=93%
+   1 cores: CPU=1.1 cores used, conn/s=56,866 (junk=1,004,995 real=75,466 errs=0)
+   conn/s per core used = 51,697
+     Go scheduler                         0.3%  
+     kernel lock contention (osq/spin)    7.0%  ###
+     netpoller/epoll                      0.0%  
+     syscall transition                   0.3%  
+     io_uring                             0.0%  
+     GC                                   0.0%  
+     kernel TCP/net                      87.6%  ###########################################
+     relay code                           3.2%  #
+     other                                1.7%  
+=== results in /root/dev/flash-relay/research/gate/results/sat-fast-110048/n1 ===

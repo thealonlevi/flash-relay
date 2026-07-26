@@ -1,0 +1,39 @@
+SATURATION SWEEP  2026-07-26T11:00:48Z
+sweep=[1 2 4 8 16 20]  junk=93%  inflight=1200  dur=15s  relay_numa=single
+sockets/NUMA nodes: 0 1 
+  node0: 20 physical cores  [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19...]
+  node1: 20 physical cores  [20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39...]
+  SMT active: 1
+  loopback: this measures the reuseport/NUMA scaling shape, NOT real-NIC saturation.
+
+=== N=1  relay=[0]  sink=20  loadgen=[21,22]
+  netpoll  N=1   conn/s=    32,652  cpu= 1.09  per-core=   29,956  lock=  4.3%  sched=  2.4%  netpoll=  1.5%
+  uring    N=1   conn/s=    56,866  cpu= 1.10  per-core=   51,697  lock=  7.0%  sched=  0.3%  netpoll=  0.0%
+
+=== N=2  relay=[0,1]  sink=20  loadgen=[21,22,23,24]
+  netpoll  N=2   conn/s=    61,421  cpu= 2.18  per-core=   28,175  lock=  4.1%  sched=  2.2%  netpoll=  1.2%
+  uring    N=2   conn/s=   109,361  cpu= 2.18  per-core=   50,166  lock=  7.1%  sched=  0.3%  netpoll=  0.0%
+
+=== N=4  relay=[0,1,2,3]  sink=20  loadgen=[21,22,23,24,25,26,27,28]
+  netpoll  N=4   conn/s=   116,457  cpu= 4.25  per-core=   27,402  lock=  4.5%  sched=  2.0%  netpoll=  1.1%
+  uring    N=4   conn/s=   206,517  cpu= 4.39  per-core=   47,043  lock=  7.3%  sched=  0.4%  netpoll=  0.0%
+
+=== N=8  relay=[0,1,2,3,4,5,6,7]  sink=20  loadgen=[21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36]
+  netpoll  N=8   conn/s=   207,105  cpu= 8.56  per-core=   24,195  lock=  6.3%  sched=  2.0%  netpoll=  1.4%
+  uring    N=8   conn/s=   379,542  cpu= 8.83  per-core=   42,983  lock=  7.5%  sched=  0.4%  netpoll=  0.0%
+
+=== N=16  relay=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]  sink=20  loadgen=[21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+  netpoll  N=16  conn/s=   274,219  cpu=16.96  per-core=   16,169  lock= 28.8%  sched=  1.5%  netpoll=  1.2%
+  uring    N=16  conn/s=   406,171  cpu=14.94  per-core=   27,187  lock= 13.9%  sched=  0.4%  netpoll=  0.0%
+
+  WARNING: only 19 loadgen cores for 20 relay cores — the measured ceiling may be the LOADGEN's, not the relay's
+=== N=20  relay=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]  sink=20  loadgen=[21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+  netpoll  N=20  conn/s=   271,033  cpu=21.03  per-core=   12,888  lock= 42.1%  sched=  1.2%  netpoll=  1.0%
+  uring    N=20  conn/s=   407,016  cpu=16.34  per-core=   24,909  lock= 14.4%  sched=  0.6%  netpoll=  0.0%
+
+=== how to read this ===
+flash-relay(uring) conn/s should keep climbing with N while netpoll's flattens.
+If uring's per-core ALSO decays as N grows AND lock% climbs, the collapse relocated
+to the SO_REUSEPORT accept path (#3) — that is the real ceiling, and the next
+target. Compare RELAY_NUMA=single vs =both to separate NUMA (#4) from the lock.
+Loopback caveat stands: absolute conn/s is loadgen-bound, the SHAPE is the result.

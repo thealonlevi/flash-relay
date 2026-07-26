@@ -1,3 +1,14 @@
+> **SUPERSEDED by `../sat-fast-110048/SUMMARY.md`. One central claim below is wrong.**
+> This run concluded flash-relay's lock contention was "flat across a 16x core range" and
+> that the collapse was eliminated rather than relocated. That was an artifact of an
+> under-powered load generator: the client dialed via `net.Dial` and so carried the
+> netpoller ceiling it exists to measure, capping near 245k conn/s. flash-relay was never
+> pushed hard enough to reach its knee, so the curve looked flat because nothing strained
+> it. With a netpoller-free junk path (+64% load, same cores), its lock contention does
+> rise — 7.5% at N=8 to 14.4% at N=20. The corrected claim is *delayed and bounded*, not
+> eliminated. Everything below about the BASELINE's collapse still holds and was
+> reproduced more strongly in the newer run (netpoll goes backwards past N=16).
+
 # Saturation sweep — the collapse-cliff question, answered (loopback, dev-grade)
 
 **Date:** 2026-07-26 · **Box:** 2×20-core Xeon Gold 6230 (40 physical cores, SMT on,

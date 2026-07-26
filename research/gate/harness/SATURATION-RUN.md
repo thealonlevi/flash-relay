@@ -108,19 +108,26 @@ load source is not pushing hard enough and neither curve means anything.
 
 ## Status
 
-**Executed 2026-07-26** on a 2×20-core Xeon Gold 6230. Result:
-`../results/sat-104016/SUMMARY.md`.
+**Executed 2026-07-26** on a 2×20-core Xeon Gold 6230. Current result:
+`../results/sat-fast-110048/SUMMARY.md` (supersedes `../results/sat-104016/SUMMARY.md`).
 
-Headline: the collapse is the **baseline's**, and it did **not** relocate. netpoll from
-N=8→16 doubled cores for +15% throughput while per-core efficiency fell 42%, ending at
-**35.1%** kernel lock contention (`osq_lock` 32.6% + `mutex_spin_on_owner` 4.8%).
-flash-relay's lock contention is **flat at ~8% across the whole 1→16 core range** and has
-no `osq_lock` in its top symbols at all.
+Headline: the collapse is the **baseline's**. Past N=16 netpoll goes *backwards* — from
+N=16→20 it burned 24% more CPU (16.96→21.03 cores) to deliver *less* throughput
+(274,219→271,033), with **42.1%** of CPU in lock contention (`osq_lock` 39.8% +
+`mutex_spin_on_owner` 3.9%: one mutex). flash-relay flattens at ~407k but never regresses,
+and its contention is distributed qspinlock traffic (top symbol 6.9%) with no mutex at all.
+Per-core ratio runs 1.68-1.93× across the sweep.
 
-**flash-relay's knee was not found** — at N=8/16 it used only 7.67/10.35 of its cores
-because the single-box load generator ran out of capacity first. Its ceiling is above the
-measured ~245k conn/s, and the per-core ratios at high N understate the win. Finding that
-knee needs a second load box or a NIC path.
+**Corrected from the first run:** flash-relay's lock contention is *not* flat. The first
+sweep's load generator dialed via `net.Dial`, carrying the very netpoller ceiling it
+exists to measure, and capped near 245k conn/s — so nothing strained the SUT and its curve
+looked flat. With a netpoller-free junk path (+64% load from the same cores), contention
+rises 7.5%→14.4% from N=8→20. The accurate claim is **delayed and bounded, not
+eliminated**.
+
+**flash-relay's knee is still unmeasured.** It returned 406,171 at N=16 and 407,016 at
+N=20 (0.2% apart) while using only 93%/82% of its cores — that plateau is the load
+generator's own ~407k ceiling. N≤8 points are clean; N=16/20 are lower bounds.
 
 Three harness defects surfaced on first real execution and are fixed (single listen port
 capped the loadgen at 22% relay CPU; `INFLIGHT=8000` sat far past the knee; the sweep

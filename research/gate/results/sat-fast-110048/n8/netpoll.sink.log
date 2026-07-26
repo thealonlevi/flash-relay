@@ -1,0 +1,13 @@
+2026/07/26 11:03:35 sink listening on 127.0.0.1:31116 (reqlen=64 replylen=256)
+2026/07/26 11:03:37 sink served=3 auditFail=0 errs=0
+2026/07/26 11:03:39 sink served=25171 auditFail=0 errs=0
+2026/07/26 11:03:41 sink served=53476 auditFail=0 errs=0
+2026/07/26 11:03:43 sink served=82172 auditFail=0 errs=0
+2026/07/26 11:03:45 sink served=111103 auditFail=0 errs=0
+2026/07/26 11:03:47 sink served=140203 auditFail=0 errs=0
+2026/07/26 11:03:49 sink served=169170 auditFail=0 errs=0
+2026/07/26 11:03:51 sink served=198000 auditFail=0 errs=0
+2026/07/26 11:03:53 sink served=227203 auditFail=0 errs=0
+2026/07/26 11:03:55 sink served=256656 auditFail=0 errs=0
+2026/07/26 11:03:57 sink served=285785 auditFail=0 errs=0
+2026/07/26 11:03:59 sink served=299651 auditFail=0 errs=0

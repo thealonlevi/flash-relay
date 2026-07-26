@@ -1,0 +1,11 @@
+   1 cores: CPU=1.09 cores used, conn/s=32,652 (junk=577,042 real=43,354 errs=0)
+   conn/s per core used = 29,956
+     Go scheduler                         2.4%  #
+     kernel lock contention (osq/spin)    4.3%  ##
+     netpoller/epoll                      1.5%  
+     syscall transition                   6.0%  ###
+     io_uring                             0.0%  
+     GC                                   2.1%  #
+     kernel TCP/net                      66.4%  #################################
+     relay code                          16.4%  ########
+     other                                1.0%  
