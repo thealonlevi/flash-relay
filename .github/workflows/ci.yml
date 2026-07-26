@@ -20,3 +20,28 @@ jobs:
         run: CGO_ENABLED=0 go vet ./...
       - name: gofmt
         run: test -z "$(gofmt -l flashrelay/ internal/ examples/)"
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+      # The suite drives real rings and real loopback sockets, so it needs
+      # io_uring_setup(2) to be permitted. Record the runner's kernel and the
+      # io_uring lockdown sysctl up front: if the suite ever fails at ring setup,
+      # this line says whether it is the environment or the code.
+      - name: runner io_uring environment
+        run: |
+          echo "kernel: $(uname -r)"
+          echo "io_uring_disabled: $(cat /proc/sys/kernel/io_uring_disabled 2>/dev/null || echo '<sysctl absent>')"
+      - name: go test
+        run: CGO_ENABLED=0 go test ./flashrelay/ ./internal/... -count=1
+      # The engine hands connections between the ring worker and the off-ring
+      # hook pool through a mutex + coalescing atomic; that handoff is exactly
+      # where a data race would hide, so gate on it too. -race needs cgo.
+      - name: go test -race
+        run: CGO_ENABLED=1 go test -race ./flashrelay/ ./internal/... -count=1
