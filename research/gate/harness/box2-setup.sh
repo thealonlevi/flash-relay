@@ -102,6 +102,36 @@ print(f"  !! storm and sink SHARE cores {common} — the sink will eat storm cap
 PY
 
 echo
+echo "=== 3b. sink port span availability ==="
+# Pre-flight the whole span and name whatever holds a port. Without this the sink
+# just reports the first collision and the operator has to go digging; on a shared
+# box the holder is usually an unrelated service, and the fix is to move the span.
+BUSY=""
+for p in $(seq "$SPORT" $(( SPORT + SINK_PORTS - 1 ))); do
+  if ! python3 - "$p" <<'PY' 2>/dev/null
+import socket, sys
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    s.bind(("0.0.0.0", int(sys.argv[1]))); s.close()
+except OSError:
+    sys.exit(1)
+PY
+  then
+    BUSY="$BUSY $p"
+    holder=$(ss -lntp 2>/dev/null | awk -v p=":$p\$" '$4 ~ p {print $NF; exit}')
+    echo "  port $p BUSY ${holder:-(held by a socket with no listening process — likely draining)}"
+  fi
+done
+if [ -n "$BUSY" ]; then
+  echo "  !! span $SPORT-$(( SPORT + SINK_PORTS - 1 )) is not free:$BUSY"
+  echo "  Move the span and re-run, e.g.:  sudo env SPORT=9300 BOX1_IP=$BOX1_IP LG_CORES=$LG_CORES SINK_CORES=$SINK_CORES bash $0"
+  echo "  Tell box 1 the new base port — it must dial the same span."
+  exit 1
+fi
+echo "  all $SINK_PORTS ports free ($SPORT-$(( SPORT + SINK_PORTS - 1 )))"
+
+echo
 echo "=== 4. start sink + loadgend (pinned, separate) ==="
 pkill -x loadgend 2>/dev/null; pkill -x sink 2>/dev/null; sleep 1
 ulimit -n 1048576

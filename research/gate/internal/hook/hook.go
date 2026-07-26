@@ -10,8 +10,12 @@
 package hook
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
+	"net"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -67,38 +71,72 @@ type Config struct {
 	// alone, i.e. 95% of the sum. The same should hold for the upstream leg, whose
 	// single-path ceiling (~50-60k with a 1-2s tail past ~1k concurrent) is
 	// otherwise what caps a relayed run.
+	// Entries are "ip" or "ip:basePort". The per-host form matters because the two
+	// upstream boxes need not have the same span free — on a shared box some
+	// unrelated service may already hold a port, and the fix is to move that host's
+	// span, not to give up the host.
 	SinkIPs []string
 	Mark    int // SO_MARK on the upstream dial (fingerprint profile; 0 = none)
 	// dialSeq round-robins the destination port. Per-Config, and the hook pool
 	// shares one Config, so it must be atomic.
 	dialSeq *atomic.Uint64
+	targets []sinkTarget // resolved SinkIPs, filled by Init
+}
+
+type sinkTarget struct {
+	ip   string
+	base int
 }
 
 // Init prepares per-Config mutable state. Call once before sharing a Config
 // across hook goroutines.
-func (c *Config) Init() {
+func (c *Config) Init() error {
 	if c.dialSeq == nil {
 		c.dialSeq = new(atomic.Uint64)
 	}
+	c.targets = nil
+	for _, e := range c.SinkIPs {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		ip, base := e, c.SinkPort
+		if h, p, err := net.SplitHostPort(e); err == nil {
+			n, perr := strconv.Atoi(p)
+			if perr != nil {
+				return fmt.Errorf("hook: sink target %q: bad port %q", e, p)
+			}
+			ip, base = h, n
+		}
+		if net.ParseIP(ip) == nil {
+			return fmt.Errorf("hook: sink target %q: not an IP", e)
+		}
+		c.targets = append(c.targets, sinkTarget{ip: ip, base: base})
+	}
+	if len(c.targets) == 0 {
+		c.targets = []sinkTarget{{ip: c.SinkIP, base: c.SinkPort}}
+	}
+	return nil
 }
 
 // sinkTargetFor picks this dial's destination (ip, port). One counter walks the
 // whole ip×port grid, so successive dials move across BOTH axes rather than
 // exhausting one host's ports before touching the next.
 func (c Config) sinkTargetFor() (string, int) {
-	ips := c.SinkIPs
-	if len(ips) == 0 {
-		ips = []string{c.SinkIP}
+	ts := c.targets
+	if len(ts) == 0 { // Init not called: fall back to the single configured target
+		return c.SinkIP, c.SinkPort
 	}
 	nports := c.SinkPorts
 	if nports < 1 {
 		nports = 1
 	}
-	if c.dialSeq == nil || (len(ips) == 1 && nports == 1) {
-		return ips[0], c.SinkPort
+	if c.dialSeq == nil || (len(ts) == 1 && nports == 1) {
+		return ts[0].ip, ts[0].base
 	}
 	n := c.dialSeq.Add(1)
-	return ips[int(n%uint64(len(ips)))], c.SinkPort + int((n/uint64(len(ips)))%uint64(nports))
+	t := ts[int(n%uint64(len(ts)))]
+	return t.ip, t.base + int((n/uint64(len(ts)))%uint64(nports))
 }
 
 // Spin burns d of CPU time in a busy-loop (it must compete for the core, so it

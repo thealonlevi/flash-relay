@@ -296,7 +296,9 @@ func worker(id, core int, lns []*rawsock.Listener, c *relayCfg) {
 	}
 	br := &bridge{efd: int(efd)}
 	hcfg := hook.Config{AuthCPU: c.authCPU, Delay: c.delay, SinkIP: c.sinkIP, SinkPort: c.sinkPort, SinkPorts: c.sinkPorts, SinkIPs: c.sinkIPs, Mark: c.fpMark}
-	hcfg.Init()
+	if err := hcfg.Init(); err != nil {
+		log.Fatalf("worker %d: %v", id, err)
+	}
 	jobs := make(chan uint64, 1<<16)
 	for i := 0; i < c.hookWorkers; i++ {
 		go func() {

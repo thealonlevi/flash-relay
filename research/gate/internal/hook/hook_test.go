@@ -11,7 +11,9 @@ import "testing"
 func TestSinkTargetForWalksTheGrid(t *testing.T) {
 	c := Config{SinkIP: "10.0.0.1", SinkPort: 9100, SinkPorts: 4,
 		SinkIPs: []string{"10.0.0.1", "10.0.0.2"}}
-	c.Init()
+	if err := c.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
 
 	seen := map[string]int{}
 	const n = 8 * 100 // whole 2x4 grid, many times over
@@ -36,7 +38,9 @@ func TestSinkTargetForWalksTheGrid(t *testing.T) {
 func TestSinkTargetForDegenerateCases(t *testing.T) {
 	// No SinkIPs and no span: the single configured target, unchanged.
 	c := Config{SinkIP: "10.0.0.1", SinkPort: 9100}
-	c.Init()
+	if err := c.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
 	if ip, port := c.sinkTargetFor(); ip != "10.0.0.1" || port != 9100 {
 		t.Errorf("single target = %s:%d, want 10.0.0.1:9100", ip, port)
 	}
@@ -51,8 +55,48 @@ func TestSinkTargetForDegenerateCases(t *testing.T) {
 
 	// SinkPorts=0 must behave as 1, not divide by zero.
 	z := Config{SinkIP: "10.0.0.3", SinkPort: 9300, SinkPorts: 0}
-	z.Init()
+	if err := z.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
 	if ip, port := z.sinkTargetFor(); ip != "10.0.0.3" || port != 9300 {
 		t.Errorf("zero span = %s:%d, want 10.0.0.3:9300", ip, port)
+	}
+}
+
+// Per-host base ports: the two upstream boxes need not have the same span free.
+func TestSinkTargetPerHostPorts(t *testing.T) {
+	c := Config{SinkPort: 9100, SinkPorts: 2,
+		SinkIPs: []string{"10.0.0.1", "10.0.0.2:9300"}}
+	if err := c.Init(); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		ip, port := c.sinkTargetFor()
+		switch ip {
+		case "10.0.0.1":
+			if port != 9100 && port != 9101 {
+				t.Fatalf("host 10.0.0.1 got port %d, want 9100/9101", port)
+			}
+		case "10.0.0.2":
+			if port != 9300 && port != 9301 {
+				t.Fatalf("host 10.0.0.2 got port %d, want 9300/9301", port)
+			}
+		default:
+			t.Fatalf("unexpected host %s", ip)
+		}
+		seen[ip] = true
+	}
+	if len(seen) != 2 {
+		t.Errorf("only reached hosts %v, want both", seen)
+	}
+}
+
+func TestInitRejectsBadTargets(t *testing.T) {
+	for _, spec := range []string{"not-an-ip", "10.0.0.1:abc", "10.0.0.1:"} {
+		c := Config{SinkPort: 9100, SinkIPs: []string{spec}}
+		if err := c.Init(); err == nil {
+			t.Errorf("Init(%q) = nil error, want rejection", spec)
+		}
 	}
 }
