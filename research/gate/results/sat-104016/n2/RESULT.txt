@@ -1,0 +1,28 @@
+MULTI-CORE TEST  N=2 cores  flood inflight=500 junk=93%  loopback  2026-07-26T10:41:12Z
+relay cores=0,1 sink=20 loadgen=21,22,23,24  ports r=127.0.0.1:31000-31015 s=31116 (span=16) inflight=500
+
+>>> netpoll : 2 cores, flood inflight=500 junk=93%
+   2 cores: CPU=2.17 cores used, conn/s=63,863 (junk=1,128,710 real=84,689 errs=0)
+   conn/s per core used = 29,430
+     Go scheduler                         1.7%  
+     kernel lock contention (osq/spin)    4.7%  ##
+     netpoller/epoll                      1.0%  
+     syscall transition                   6.0%  ###
+     io_uring                             0.0%  
+     GC                                   1.8%  
+     kernel TCP/net                      67.7%  #################################
+     relay code                          15.4%  #######
+     other                                1.0%  
+
+>>> uring : 2 cores, flood inflight=500 junk=93%
+   2 cores: CPU=2.11 cores used, conn/s=75,252 (junk=1,329,969 real=99,823 errs=0)
+   conn/s per core used = 35,664
+     Go scheduler                         0.4%  
+     kernel lock contention (osq/spin)    7.8%  ###
+     netpoller/epoll                      0.0%  
+     syscall transition                   0.5%  
+     io_uring                             0.0%  
+     GC                                   0.0%  
+     kernel TCP/net                      86.8%  ###########################################
+     relay code                           2.7%  #
+     other                                1.1%  

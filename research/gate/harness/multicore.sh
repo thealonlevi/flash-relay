@@ -15,7 +15,15 @@ export PATH="$PATH:/usr/local/go/bin"
 NCORE=${NCORE:-6}                 # relay cores 0..NCORE-1
 SINK_CORE=${SINK_CORE:-6}
 LG_CORES=${LG_CORES:-7,8,9,10,11,12}
-JUNK=${JUNK:-90}; INFLIGHT=${INFLIGHT:-6000}; DUR=${DUR:-15}; MEASURE=${MEASURE:-12}
+JUNK=${JUNK:-90}; INFLIGHT=${INFLIGHT:-500}; DUR=${DUR:-15}; MEASURE=${MEASURE:-12}
+# PORTS: listen on a SPAN of ports, and point the loadgen at the whole span.
+# Measured on the 2x20-core box: with ONE destination port an 8-core loadgen tops
+# out at ~36k conn/s and leaves the 8-core relay at 22% CPU -- the client's
+# ephemeral-port allocation on a single (srcIP,dstIP,dstPort) tuple is the limit,
+# not the relay. Spanning 16 ports gave 134k conn/s and 76% relay CPU on the same
+# hardware: 3.75x. Without this the sweep pins BOTH builds at the loadgen's ceiling
+# and every curve comes out flat, which is not a result about the relay at all.
+PORTS=${PORTS:-16}
 OUT=${OUT:-results/multicore-$(date +%Y%m%d-%H%M%S)}; CLK=$(getconf CLK_TCK)
 
 [ "$(id -u)" = 0 ] || { echo "run as root"; exit 1; }
@@ -28,14 +36,20 @@ OLD_P=$(cat /proc/sys/kernel/perf_event_paranoid); OLD_K=$(cat /proc/sys/kernel/
 echo -1 >/proc/sys/kernel/perf_event_paranoid; echo 0 >/proc/sys/kernel/kptr_restrict
 
 # verified-free listen ports below the ephemeral range (avoid wedged-relay pollution)
-read RPORT SPORT < <(python3 -c "
-import socket
+# Need a CONTIGUOUS free block of PORTS for the relay span, plus one for the sink.
+read RPORT SPORT < <(PORTS=$PORTS python3 -c "
+import os, socket
+n=int(os.environ['PORTS'])
 def free(p):
  s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
  try: s.bind(('127.0.0.1',p));s.close();return True
  except: return False
-f=[p for p in range(31000,39000) if free(p)];print(f[0],f[300])")
-RES=$(cat /proc/sys/net/ipv4/ip_local_reserved_ports 2>/dev/null||echo ""); sysctl -w net.ipv4.ip_local_reserved_ports="${RES:+$RES,}$RPORT,$SPORT" >/dev/null 2>&1||true
+f=[p for p in range(31000,39000) if free(p)]
+fs=set(f)
+base=next(p for p in f if all(q in fs for q in range(p,p+n)))
+print(base, next(p for p in f if p >= base+n+100))")
+RES=$(cat /proc/sys/net/ipv4/ip_local_reserved_ports 2>/dev/null||echo ""); sysctl -w net.ipv4.ip_local_reserved_ports="${RES:+$RES,}$RPORT-$((RPORT+PORTS-1)),$SPORT" >/dev/null 2>&1||true
+RSPEC="127.0.0.1:$RPORT"; [ "$PORTS" -gt 1 ] && RSPEC="127.0.0.1:$RPORT-$((RPORT+PORTS-1))"
 
 R=""; S=""
 cleanup(){ [ -n "$R" ]&&kill "$R" 2>/dev/null||true; [ -n "$S" ]&&kill "$S" 2>/dev/null||true
@@ -59,7 +73,7 @@ run_build(){
   sleep 0.4
   taskset -c "$RELCORES" env GOMAXPROCS=$NCORE "$@" >"$OUT/$name.relay.log" 2>&1 & R=$!
   sleep 1.5; kill -0 "$R" 2>/dev/null || { echo "!! relay failed"; cat "$OUT/$name.relay.log"; return 1; }
-  taskset -c "$LG_CORES" "$BIN/loadgen" -relay 127.0.0.1:$RPORT -inflight $INFLIGHT -junkpct $JUNK \
+  taskset -c "$LG_CORES" "$BIN/loadgen" -relay "$RSPEC" -inflight $INFLIGHT -junkpct $JUNK \
     -warmup 2s -duration $((DUR+4))s >"$OUT/$name.load.json" 2>/dev/null & local lg=$!
   sleep 2
   local t0; t0=$(ticks "$R")
@@ -103,11 +117,11 @@ PY
 
 {
 echo "MULTI-CORE TEST  N=$NCORE cores  flood inflight=$INFLIGHT junk=${JUNK}%  loopback  $(date -u +%FT%TZ)"
-echo "relay cores=$RELCORES sink=$SINK_CORE loadgen=$LG_CORES  ports r=$RPORT s=$SPORT"
+echo "relay cores=$RELCORES sink=$SINK_CORE loadgen=$LG_CORES  ports r=$RSPEC s=$SPORT (span=$PORTS) inflight=$INFLIGHT"
 if [ -r "$(dirname "$0")/topology.sh" ]; then . "$(dirname "$0")/topology.sh"; topology_summary; fi
 echo
-run_build netpoll "$BIN/relay-netpoll" -addr 127.0.0.1:$RPORT -sink 127.0.0.1:$SPORT
+run_build netpoll "$BIN/relay-netpoll" -addr 127.0.0.1:$RPORT -sink 127.0.0.1:$SPORT -ports $PORTS
 echo
-run_build uring "$BIN/relay-uring" -addr 127.0.0.1 -port $RPORT -sinkip 127.0.0.1 -sinkport $SPORT -workers $NCORE -startcore 0
+run_build uring "$BIN/relay-uring" -addr 127.0.0.1 -port $RPORT -sinkip 127.0.0.1 -sinkport $SPORT -workers $NCORE -cores "$RELCORES" -ports $PORTS
 } 2>&1 | tee "$OUT/RESULT.txt"
 echo "=== results in $OUT ==="

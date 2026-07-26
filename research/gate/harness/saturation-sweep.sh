@@ -48,13 +48,31 @@ cd "$(dirname "$0")"
 
 SWEEP=${SWEEP:-"1 2 4 8 16"}
 JUNK=${JUNK:-90}
-INFLIGHT=${INFLIGHT:-6000}
+# INFLIGHT is per-point client concurrency, NOT a load knob to turn up. Measured on
+# the 2x20-core box at N=8: throughput is flat (~35.7k) from 200 to 1000 in flight,
+# then DEGRADES -- 8000 cost 21% throughput and inflated p50 from 2.5ms to 814ms.
+# Past the knee you are only measuring the client's own queueing.
+INFLIGHT=${INFLIGHT:-500}
+PORTS=${PORTS:-16}   # relay listen-port span; see multicore.sh (single port caps the loadgen)
 DUR=${DUR:-15}
 MEASURE=${MEASURE:-12}
 RELAY_NUMA=${RELAY_NUMA:-single}   # single = one socket (isolates #3) | both = span sockets (#4)
 RELAY_NODE=${RELAY_NODE:-0}
 LOAD_NODE=${LOAD_NODE:-1}
 OUT=${OUT:-results/saturation-$(date +%Y%m%d-%H%M%S)}
+# Resolve OUT to an ABSOLUTE path before handing it to multicore.sh. This script
+# runs from harness/ but multicore.sh cds to gate/, so a relative OUT resolves to
+# two different directories: multicore.sh wrote its summaries under gate/results/
+# while the tabulation below looked under harness/results/ and reported "no
+# summary" for every point of an otherwise perfectly good run. The dry run returns
+# before reaching that code, which is why placement-only verification never caught it.
+# NB: this script has already cd'd to harness/ above, so resolve against the CURRENT
+# directory's parent (gate/) -- re-deriving it from $0 would fail, since $0 is
+# relative to the caller's original cwd.
+case "$OUT" in
+  /*) ;;
+  *) OUT="$(cd .. && pwd)/$OUT" ;;
+esac
 mkdir -p "$OUT"
 
 NODES=$(numa_nodes | tr '\n' ' ')
@@ -127,7 +145,7 @@ for N in $SWEEP; do
     continue
   fi
   NCORE=$N RELCORES="$RELCORES" SINK_CORE="$SINK_CORE" LG_CORES="$LG_CORES" \
-    JUNK="$JUNK" INFLIGHT="$INFLIGHT" DUR="$DUR" MEASURE="$MEASURE" OUT="$RUNOUT" \
+    JUNK="$JUNK" INFLIGHT="$INFLIGHT" PORTS="$PORTS" DUR="$DUR" MEASURE="$MEASURE" OUT="$RUNOUT" \
     bash ./multicore.sh >"$OUT/n$N.log" 2>&1 || echo "  !! run N=$N failed (see $OUT/n$N.log)" | tee -a "$RESULT"
 
   for build in netpoll uring; do

@@ -1,0 +1,12 @@
+2026/07/26 10:41:13 relay-netpoll (BASELINE) on 127.0.0.1 ports 31000..31015 -> sink 127.0.0.1:31116 (authcpu=5µs realistic=false)
+2026/07/26 10:41:15 baseline completed=263 errs=5978
+2026/07/26 10:41:17 baseline completed=8859 errs=122672
+2026/07/26 10:41:19 baseline completed=17745 errs=239094
+2026/07/26 10:41:21 baseline completed=26606 errs=355752
+2026/07/26 10:41:23 baseline completed=35773 errs=477874
+2026/07/26 10:41:25 baseline completed=44778 errs=599794
+2026/07/26 10:41:27 baseline completed=53804 errs=719112
+2026/07/26 10:41:29 baseline completed=62774 errs=839324
+2026/07/26 10:41:31 baseline completed=71724 errs=958508
+2026/07/26 10:41:33 baseline completed=80609 errs=1078586
+2026/07/26 10:41:35 baseline completed=89159 errs=1194426

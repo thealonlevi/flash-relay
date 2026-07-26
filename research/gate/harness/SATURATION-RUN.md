@@ -108,5 +108,22 @@ load source is not pushing hard enough and neither curve means anything.
 
 ## Status
 
-Built and dry-run verified (placement, disjointness, warnings). **Not executed** — no
-saturation numbers exist from this rig yet.
+**Executed 2026-07-26** on a 2×20-core Xeon Gold 6230. Result:
+`../results/sat-104016/SUMMARY.md`.
+
+Headline: the collapse is the **baseline's**, and it did **not** relocate. netpoll from
+N=8→16 doubled cores for +15% throughput while per-core efficiency fell 42%, ending at
+**35.1%** kernel lock contention (`osq_lock` 32.6% + `mutex_spin_on_owner` 4.8%).
+flash-relay's lock contention is **flat at ~8% across the whole 1→16 core range** and has
+no `osq_lock` in its top symbols at all.
+
+**flash-relay's knee was not found** — at N=8/16 it used only 7.67/10.35 of its cores
+because the single-box load generator ran out of capacity first. Its ceiling is above the
+measured ~245k conn/s, and the per-core ratios at high N understate the win. Finding that
+knee needs a second load box or a NIC path.
+
+Three harness defects surfaced on first real execution and are fixed (single listen port
+capped the loadgen at 22% relay CPU; `INFLIGHT=8000` sat far past the knee; the sweep
+resolved `OUT` to a different directory than `multicore.sh` wrote to, so every point
+reported "no summary"). The last one is why dry-run verification was not enough: a dry run
+returns before reaching the tabulation code.
