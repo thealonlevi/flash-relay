@@ -2,8 +2,14 @@
 
 // Package flashrelay is a pure-Go (CGO_ENABLED=0) io_uring TCP relay engine for
 // Linux. It accepts client connections, runs a caller-supplied decision hook on
-// the initial request bytes, then splices client↔upstream bidirectionally — with
+// the initial request bytes, then relays client↔upstream bidirectionally — with
 // NO Go netpoller on any data-plane fd (listener, client, or upstream).
+//
+// The data path is buffered recv/send on the ring (one per-direction buffer per
+// connection), NOT splice(2): on a CPU-bound loopback regime zero-copy splice
+// measured no better than recv/send, so the library keeps the simpler path. A
+// real IORING_OP_SPLICE relay exists in the research SUT (research/gate/cmd/
+// relay-uring -splice) for validating the copy-bound win on real NICs.
 //
 // Each worker is a shared-nothing per-core engine (its own SO_REUSEPORT listener,
 // io_uring ring, hook-goroutine pool, and connection map), so the engine scales
@@ -31,24 +37,53 @@ import (
 	"github.com/thealonlevi/flash-relay/internal/rawsock"
 )
 
-// Decision is what a Hook returns for a connection.
+// Decision is what a Hook returns for a connection. The fields are evaluated in
+// strict precedence order: Reject, then More, then UpstreamFD. Setting a
+// lower-precedence field alongside a higher one is a caller bug; the engine
+// ignores it (and closes an ignored UpstreamFD rather than leaking it).
 type Decision struct {
 	// UpstreamFD is a connected upstream socket fd (the caller dialed it, e.g.
 	// with a blocking syscall.Connect) for the engine to adopt and relay to.
-	// Ignored when Reject is true.
+	// Ignored when Reject or More is set.
 	UpstreamFD int
 	// Reply, if non-empty, is sent to the client before relaying (or, when
-	// Reject is set, sent as the final bytes before closing).
+	// Reject is set, sent as the final bytes before closing; or, when More is
+	// set, sent before reading the next batch of request bytes — which is how a
+	// multi-round handshake like SOCKS5 sends its method-selection reply).
 	Reply []byte
 	// Reject closes the connection after sending Reply, without relaying.
 	Reject bool
+	// More asks the engine for more client bytes before deciding: it sends Reply
+	// (if any), reads more into the accumulated request buffer, and invokes the
+	// Hook again with EVERYTHING received so far (not just the new bytes). Use
+	// it when the initial read returned a partial protocol handshake — a client
+	// request can span TCP segments, so a single read is not a message boundary.
+	//
+	// The buffer grows on demand up to Config.MaxReqLen; a Hook that asks for
+	// More past that cap gets the connection closed and counted as an error.
+	More bool
+	// Consumed is how many of the accumulated request bytes the Hook consumed as
+	// protocol handshake and the engine must therefore NOT forward upstream —
+	// e.g. a SOCKS5 greeting+CONNECT or an HTTP CONNECT request line, which the
+	// relay terminates rather than passes through. The engine forwards only
+	// req[Consumed:] to the upstream, then goes duplex.
+	//
+	// 0 (the default) forwards the whole accumulated request, which is the right
+	// behavior for a transparent relay that inspects but does not terminate the
+	// client protocol. Values are clamped to the accumulated length.
+	Consumed int
 }
 
-// Hook is the caller's per-connection decision callback. It receives the initial
-// request bytes (up to Config.InitialReqLen) and the client's peer address. It
-// MAY block (auth, blacklist lookup, IP allocation, the upstream dial) — it runs
-// on an off-ring goroutine pool, so a slow hook parks one connection, never the
-// ring. Return a relay Decision (adopt UpstreamFD) or a reject.
+// Hook is the caller's per-connection decision callback. It receives the request
+// bytes accumulated so far (initially up to Config.InitialReqLen) and the
+// client's peer address. It MAY block (auth, blacklist lookup, IP allocation,
+// the upstream dial) — it runs on an off-ring goroutine pool, so a slow hook
+// parks one connection, never the ring. Return a relay Decision (adopt
+// UpstreamFD), a reject, or Decision{More: true} to be called again with more
+// bytes once they arrive.
+//
+// req is only valid for the duration of the call: the engine reuses and may
+// reallocate the underlying buffer afterwards. Copy anything you retain.
 type Hook func(req []byte, peer netip.AddrPort) Decision
 
 // Config configures a Server. Zero-value fields take the documented defaults.
@@ -59,6 +94,7 @@ type Config struct {
 	Pin           bool          // if true, pin worker i to CPU StartCore+i (one ring/core).
 	StartCore     int           // first core to pin to when Pin is set.
 	InitialReqLen int           // bytes to read before invoking the Hook. 0 => 64.
+	MaxReqLen     int           // cap on the accumulated request buffer when a Hook returns More. 0 => 8192.
 	BufSize       int           // per-direction relay buffer bytes. 0 => 16384.
 	MaxConns      int           // per-worker live-connection cap (backpressure; shed above). 0 => 50000.
 	AcceptBatch   int           // accepts kept in flight per worker. 0 => 64.
@@ -73,6 +109,12 @@ func (c *Config) defaults() {
 	}
 	if c.InitialReqLen <= 0 {
 		c.InitialReqLen = 64
+	}
+	if c.MaxReqLen <= 0 {
+		c.MaxReqLen = 8192
+	}
+	if c.MaxReqLen < c.InitialReqLen {
+		c.MaxReqLen = c.InitialReqLen // the first read must always fit
 	}
 	if c.BufSize <= 0 {
 		c.BufSize = 16384
@@ -92,21 +134,41 @@ func (c *Config) defaults() {
 }
 
 // Stats is a point-in-time snapshot of engine counters (summed across workers).
+//
+// Every accepted connection is counted in EXACTLY ONE terminal bucket —
+// Completed, Rejected, Shed, IdleClosed, or Errors — so
+//
+//	Accepted == Completed + Rejected + Shed + IdleClosed + <conn errors> + LiveConns
+//
+// holds at rest. (Errors additionally counts accept-syscall failures, which never
+// became connections and so are not part of that identity.)
 type Stats struct {
-	Accepted   uint64
-	Completed  uint64 // connections fully relayed and closed
+	Accepted uint64
+	// Completed is connections that reached the relay phase and closed without
+	// landing in another terminal bucket — i.e. a clean relayed connection. It
+	// does NOT count rejects, shed, idle-closed, or errored connections.
+	Completed  uint64
 	Rejected   uint64 // hook returned Reject
 	Shed       uint64 // accepted-then-closed at the backpressure cap
 	IdleClosed uint64 // closed by the idle timeout
-	Errors     uint64
-	BytesC2U   uint64 // client -> upstream bytes relayed
-	BytesU2C   uint64 // upstream -> client bytes relayed
-	LiveConns  uint64 // currently open connections
+	// Errors counts accept failures plus connections torn down abnormally —
+	// a failed pre-relay read/send, a Hook demanding more than MaxReqLen, or a
+	// mid-relay socket error (a peer reset counts here, not in Completed).
+	Errors    uint64
+	BytesC2U  uint64 // client -> upstream bytes relayed
+	BytesU2C  uint64 // upstream -> client bytes relayed
+	LiveConns uint64 // currently open connections
+	// CQOverflow is the number of io_uring completions the kernel could not post
+	// to a CQ ring. Expected to be 0: modern kernels report IORING_FEAT_NODROP
+	// and buffer overflowing CQEs internally. A nonzero value means completions
+	// were DROPPED — the connections awaiting them are stuck and their fds
+	// leaked — and the engine logs it once per worker.
+	CQOverflow uint64
 }
 
 type counters struct {
 	accepted, completed, rejected, shed, idleClosed, errors atomic.Uint64
-	bytesC2U, bytesU2C, live                                atomic.Uint64
+	bytesC2U, bytesU2C, live, cqOverflow                    atomic.Uint64
 }
 
 // Server is a running relay engine: Config.Workers shared-nothing per-core rings.
@@ -226,5 +288,6 @@ func (s *Server) Stat() Stats {
 		BytesC2U:   s.cnt.bytesC2U.Load(),
 		BytesU2C:   s.cnt.bytesU2C.Load(),
 		LiveConns:  s.cnt.live.Load(),
+		CQOverflow: s.cnt.cqOverflow.Load(),
 	}
 }

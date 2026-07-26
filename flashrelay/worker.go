@@ -24,8 +24,9 @@ const (
 const (
 	opAccept = iota + 1
 	opEventfd
-	opRecvReq     // read the initial request from the client (pre-hook)
+	opRecvReq     // read (more of) the initial request from the client (pre-hook)
 	opReplyClient // relay path: send Decision.Reply to client before forwarding
+	opReplyMore   // More path: send Decision.Reply to client, then read more request
 	opSendUp      // forward the initial request to the upstream
 	opRejectSend  // reject path: send Decision.Reply to client, then close
 	opC2URecv
@@ -73,12 +74,18 @@ type conn struct {
 	replyOff, replyEnd int // optional reply -> client send progress
 	closing            bool
 	closesLeft         int
-	lastTick           uint64
-	c2uBuf, u2cBuf     []byte
-	c2uOff, c2uEnd     int
-	u2cOff, u2cEnd     int
-	clientReadDone     bool
-	upstreamReadDone   bool
+	// relayStarted is set once the connection reaches the duplex relay phase;
+	// counted is set once it has been charged to a terminal Stats bucket
+	// (rejected / idle / error). Together they keep opClose from double-counting
+	// a teardown as Completed. See the Stats doc for the partition invariant.
+	relayStarted     bool
+	counted          bool
+	lastTick         uint64
+	c2uBuf, u2cBuf   []byte
+	c2uOff, c2uEnd   int
+	u2cOff, u2cEnd   int
+	clientReadDone   bool
+	upstreamReadDone bool
 }
 
 type job struct {
@@ -152,6 +159,12 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 		return
 	}
 	defer ring.Close()
+	if !ring.NoDrop() {
+		log.Printf("flashrelay worker %d: kernel lacks IORING_FEAT_NODROP — CQ overflow DROPS completions "+
+			"(stuck connections, leaked fds) instead of buffering them; watch Stats.CQOverflow", id)
+	}
+	var lastOverflow uint32
+	var warnedOverflow bool
 
 	conns := make(map[uint64]*conn, 1<<16)
 	var nextID, tick uint64
@@ -193,10 +206,60 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 		}
 	}
 	startDuplex := func(cc *conn) {
+		cc.relayStarted = true
+		cc.reqBuf, cc.replyBuf = nil, nil // pre-relay buffers are dead; a grown reqBuf can be MaxReqLen
 		cc.c2uBuf = make([]byte, cfg.BufSize)
 		cc.u2cBuf = make([]byte, cfg.BufSize)
 		post(func(sq *uring.SQE) { uring.PrepRecv(sq, cc.clientFD, cc.c2uBuf, ud(cc.id, opC2URecv)) })
 		post(func(sq *uring.SQE) { uring.PrepRecv(sq, cc.upstreamFD, cc.u2cBuf, ud(cc.id, opU2CRecv)) })
+	}
+	// fail charges cc to the error bucket exactly once and tears it down.
+	fail := func(cc *conn) {
+		if !cc.counted {
+			s.cnt.errors.Add(1)
+			cc.counted = true
+		}
+		closeConn(cc)
+	}
+	// postRecvReq arms a read for MORE request bytes, appending after what the
+	// Hook has already seen. A client request can span TCP segments, so one read
+	// is not a message boundary — see Decision.More.
+	postRecvReq := func(cc *conn) {
+		post(func(sq *uring.SQE) { uring.PrepRecv(sq, cc.clientFD, cc.reqBuf[cc.reqN:], ud(cc.id, opRecvReq)) })
+	}
+	// growReq makes room for another read into the accumulated request buffer,
+	// doubling it (bounded by cfg.MaxReqLen) when full. Returns false once the
+	// cap is hit — a Hook demanding More past that is charged as an error rather
+	// than allowed to grow a per-connection buffer without limit under a flood.
+	// Safe to reallocate here: the read that filled the buffer has completed and
+	// its CQE been harvested, so the kernel holds no reference to it.
+	growReq := func(cc *conn) bool {
+		if cc.reqN < len(cc.reqBuf) {
+			return true
+		}
+		if len(cc.reqBuf) >= cfg.MaxReqLen {
+			return false
+		}
+		n := len(cc.reqBuf) * 2
+		if n > cfg.MaxReqLen {
+			n = cfg.MaxReqLen
+		}
+		nb := make([]byte, n)
+		copy(nb, cc.reqBuf[:cc.reqN])
+		cc.reqBuf = nb
+		return true
+	}
+	// forwardInit sends the UNCONSUMED part of the accumulated request upstream,
+	// or goes straight to duplex when the Hook consumed all of it (a SOCKS5 /
+	// HTTP-CONNECT style handshake the relay terminates instead of forwarding).
+	forwardInit := func(cc *conn) {
+		if cc.initSent >= cc.reqN {
+			startDuplex(cc)
+			return
+		}
+		post(func(sq *uring.SQE) {
+			uring.PrepSend(sq, cc.upstreamFD, cc.reqBuf[cc.initSent:cc.reqN], 0, ud(cc.id, opSendUp))
+		})
 	}
 
 	acceptInflight := 0
@@ -243,15 +306,16 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 
 			case opRecvReq:
 				cc := conns[cid]
-				if cc == nil {
+				if cc == nil || cc.closing {
 					break
 				}
-				if res <= 0 {
-					s.cnt.errors.Add(1)
-					closeConn(cc)
+				if res <= 0 { // peer closed or errored mid-handshake
+					fail(cc)
 					break
 				}
-				cc.reqN = int(res)
+				// Append: on a More round this read lands after what the Hook has
+				// already seen, and the Hook is re-invoked with the whole request.
+				cc.reqN += int(res)
 				cc.lastTick = tick
 				jobs <- job{id: cc.id, clientFD: cc.clientFD, req: cc.reqBuf[:cc.reqN]}
 
@@ -262,15 +326,26 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 				br.notified.Store(0)
 				for _, r := range br.drain() {
 					cc := conns[r.id]
-					if cc == nil { // conn gone (shed/closed) — clean up the adopted fd
-						if !r.dec.Reject && r.dec.UpstreamFD > 0 {
+					// The conn can be GONE (shed) or already TEARING DOWN (idle
+					// timeout, a failed read) while its Hook was still running —
+					// the ordinary case when auth is slow under a flood. Either
+					// way the adopted upstream fd is ours to close: closeConn has
+					// already fixed closesLeft, so assigning it here would leak
+					// the fd and post a send against a fd that is closing (and
+					// may since have been reused by the kernel).
+					if cc == nil || cc.closing {
+						if r.dec.UpstreamFD > 0 {
 							syscall.Close(r.dec.UpstreamFD)
 						}
 						continue
 					}
 					cc.lastTick = tick
-					if r.dec.Reject {
+					if r.dec.Reject { // precedence: Reject > More > UpstreamFD
+						if r.dec.UpstreamFD > 0 {
+							syscall.Close(r.dec.UpstreamFD) // caller bug; don't leak it
+						}
 						s.cnt.rejected.Add(1)
+						cc.counted = true
 						if len(r.dec.Reply) > 0 {
 							cc.replyBuf, cc.replyOff, cc.replyEnd = r.dec.Reply, 0, len(r.dec.Reply)
 							post(func(sq *uring.SQE) { uring.PrepSend(sq, cc.clientFD, cc.replyBuf, 0, ud(cc.id, opRejectSend)) })
@@ -279,13 +354,37 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 						}
 						continue
 					}
+					if r.dec.More { // Hook wants the rest of a multi-segment request
+						if r.dec.UpstreamFD > 0 {
+							syscall.Close(r.dec.UpstreamFD) // caller bug; don't leak it
+						}
+						if !growReq(cc) { // would exceed MaxReqLen
+							fail(cc)
+							continue
+						}
+						if len(r.dec.Reply) > 0 { // e.g. SOCKS5 method-selection, then read on
+							cc.replyBuf, cc.replyOff, cc.replyEnd = r.dec.Reply, 0, len(r.dec.Reply)
+							post(func(sq *uring.SQE) { uring.PrepSend(sq, cc.clientFD, cc.replyBuf, 0, ud(cc.id, opReplyMore)) })
+						} else {
+							postRecvReq(cc)
+						}
+						continue
+					}
 					cc.upstreamFD = r.dec.UpstreamFD
+					// Consumed bytes are handshake the relay terminates, not payload
+					// to forward. Clamp: a bogus value must not slice out of range.
+					cc.initSent = r.dec.Consumed
+					if cc.initSent < 0 {
+						cc.initSent = 0
+					}
+					if cc.initSent > cc.reqN {
+						cc.initSent = cc.reqN
+					}
 					if len(r.dec.Reply) > 0 { // send reply to client first, then forward request
 						cc.replyBuf, cc.replyOff, cc.replyEnd = r.dec.Reply, 0, len(r.dec.Reply)
 						post(func(sq *uring.SQE) { uring.PrepSend(sq, cc.clientFD, cc.replyBuf, 0, ud(cc.id, opReplyClient)) })
 					} else {
-						cc.initSent = 0
-						post(func(sq *uring.SQE) { uring.PrepSend(sq, cc.upstreamFD, cc.reqBuf[:cc.reqN], 0, ud(cc.id, opSendUp)) })
+						forwardInit(cc)
 					}
 				}
 
@@ -295,7 +394,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res <= 0 {
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				cc.replyOff += int(res)
@@ -305,8 +404,25 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					})
 					break
 				}
-				cc.initSent = 0
-				post(func(sq *uring.SQE) { uring.PrepSend(sq, cc.upstreamFD, cc.reqBuf[:cc.reqN], 0, ud(cc.id, opSendUp)) })
+				forwardInit(cc)
+
+			case opReplyMore: // More path: reply-to-client done -> read more request bytes
+				cc := conns[cid]
+				if cc == nil || cc.closing {
+					break
+				}
+				if res <= 0 {
+					fail(cc)
+					break
+				}
+				cc.replyOff += int(res)
+				if cc.replyOff < cc.replyEnd {
+					post(func(sq *uring.SQE) {
+						uring.PrepSend(sq, cc.clientFD, cc.replyBuf[cc.replyOff:cc.replyEnd], 0, ud(cc.id, opReplyMore))
+					})
+					break
+				}
+				postRecvReq(cc)
 
 			case opRejectSend: // reject path: reply sent -> close
 				cc := conns[cid]
@@ -332,8 +448,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res <= 0 {
-					s.cnt.errors.Add(1)
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				cc.initSent += int(res)
@@ -352,7 +467,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res < 0 {
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				if res == 0 {
@@ -376,7 +491,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res <= 0 {
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				cc.c2uOff += int(res)
@@ -396,7 +511,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res < 0 {
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				if res == 0 {
@@ -420,7 +535,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					break
 				}
 				if res <= 0 {
-					closeConn(cc)
+					fail(cc)
 					break
 				}
 				cc.u2cOff += int(res)
@@ -443,7 +558,13 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 				}
 				cc.closesLeft--
 				if cc.closesLeft <= 0 {
-					s.cnt.completed.Add(1)
+					// Count as Completed ONLY a connection that actually reached
+					// the relay phase and wasn't already charged to another
+					// terminal bucket — otherwise every reject / idle-close /
+					// error would also land here. See the Stats partition.
+					if !cc.counted && cc.relayStarted {
+						s.cnt.completed.Add(1)
+					}
 					delete(conns, cid)
 				}
 
@@ -455,6 +576,7 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 					for _, cc := range conns {
 						if !cc.closing && tick-cc.lastTick > idleTicks {
 							s.cnt.idleClosed.Add(1)
+							cc.counted = true
 							closeConn(cc)
 						}
 					}
@@ -462,6 +584,20 @@ func (s *Server) runWorker(id, core int, ln *rawsock.Listener) {
 			}
 		}
 		ring.CQAdvance(n)
+
+		// A dropped completion is a stuck connection and a leaked fd, not a lost
+		// statistic — the op it belonged to never reports. Modern kernels buffer
+		// overflow (IORING_FEAT_NODROP, warned about at startup); watch it anyway
+		// so the failure is visible instead of silent.
+		if ov := ring.CQOverflow(); ov != lastOverflow {
+			s.cnt.cqOverflow.Add(uint64(ov - lastOverflow))
+			if !warnedOverflow {
+				log.Printf("flashrelay worker %d: io_uring CQ overflow (%d) — completions may be dropped; "+
+					"connections can stall and leak fds. Lower MaxConns/AcceptBatch or raise RingSize.", id, ov)
+				warnedOverflow = true
+			}
+			lastOverflow = ov
+		}
 
 		// Drain on Stop: stop accepting; exit once all conns are gone.
 		if s.stop.Load() {

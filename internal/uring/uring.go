@@ -40,7 +40,10 @@ const (
 )
 
 // io_uring_params.features bits.
-const featSingleMmap = 1 // IORING_FEAT_SINGLE_MMAP
+const (
+	featSingleMmap = 1 << 0 // IORING_FEAT_SINGLE_MMAP
+	featNoDrop     = 1 << 1 // IORING_FEAT_NODROP: kernel buffers overflowing CQEs instead of dropping them
+)
 
 // io_uring_enter flags.
 const enterGetevents = 1 // IORING_ENTER_GETEVENTS
@@ -153,10 +156,11 @@ type Ring struct {
 	sqArray []uint32
 	cqes    []CQE
 
-	sqHead *uint32
-	sqTail *uint32
-	cqHead *uint32
-	cqTail *uint32
+	sqHead     *uint32
+	sqTail     *uint32
+	cqHead     *uint32
+	cqTail     *uint32
+	cqOverflow *uint32
 
 	sqMask    uint32
 	cqMask    uint32
@@ -169,6 +173,7 @@ type Ring struct {
 	toSubmit    uint32
 
 	singleMmap bool
+	noDrop     bool
 }
 
 func ptr32(b []byte, off uint32) *uint32 {
@@ -186,6 +191,7 @@ func New(entries uint32) (*Ring, error) {
 	}
 	ring := &Ring{fd: int(r1), sqEntries: p.sqEntries, cqEntries: p.cqEntries}
 	ring.singleMmap = p.features&featSingleMmap != 0
+	ring.noDrop = p.features&featNoDrop != 0
 
 	sqRingSz := p.sqOff.array + p.sqEntries*4 // array is u32 indices
 	cqRingSz := p.cqOff.cqes + p.cqEntries*16 // cqes are 16 bytes each
@@ -225,6 +231,7 @@ func New(entries uint32) (*Ring, error) {
 	ring.sqTail = ptr32(ring.sqRing, p.sqOff.tail)
 	ring.cqHead = ptr32(ring.cqRing, p.cqOff.head)
 	ring.cqTail = ptr32(ring.cqRing, p.cqOff.tail)
+	ring.cqOverflow = ptr32(ring.cqRing, p.cqOff.overflow)
 	ring.sqMask = *ptr32(ring.sqRing, p.sqOff.ringMask)
 	ring.cqMask = *ptr32(ring.cqRing, p.cqOff.ringMask)
 
@@ -284,6 +291,21 @@ func (r *Ring) CQReady() uint32 {
 func (r *Ring) PeekCQE(i uint32) *CQE {
 	return &r.cqes[(r.cqHeadLocal+i)&r.cqMask]
 }
+
+// CQOverflow returns the kernel's running count of completions it could not post
+// to the CQ ring.
+//
+// On a kernel reporting IORING_FEAT_NODROP (see NoDrop) the kernel buffers
+// overflowing CQEs internally and flushes them as space frees, so this stays 0
+// in practice. WITHOUT that feature an overflow means the CQE was DROPPED — and
+// a dropped completion is not a lost statistic: the op it belonged to never
+// reports, so its connection stalls forever and its fd leaks. Callers should
+// watch this and treat any increase as a hard fault rather than a metric.
+func (r *Ring) CQOverflow() uint32 { return atomic.LoadUint32(r.cqOverflow) }
+
+// NoDrop reports whether the kernel supports IORING_FEAT_NODROP (5.5+), i.e.
+// whether CQ overflow is buffered rather than dropped.
+func (r *Ring) NoDrop() bool { return r.noDrop }
 
 // CQAdvance marks n completions consumed, freeing those CQ slots for the kernel.
 func (r *Ring) CQAdvance(n uint32) {
