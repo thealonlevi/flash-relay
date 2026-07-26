@@ -46,7 +46,11 @@ for n in relay-uring relay-netpoll sink loadgen; do pkill -x "$n" 2>/dev/null; d
 ( cd ../.. && for c in relay-uring relay-netpoll sink loadgen; do CGO_ENABLED=0 go build -o bin/$c ./research/gate/cmd/$c||exit 1; done )
 BIN=$(cd ../.. && pwd)/bin
 ticks(){ awk '{print $14+$15}' "/proc/$1/stat" 2>/dev/null||echo 0; }
-RELCORES=$(seq -s, 0 $((NCORE-1)))
+# Relay core list. Default keeps the historical seq 0..N-1 for continuity with the
+# single-socket box the earlier results came from; on a multi-socket machine pass
+# a topology-aware list (see harness/topology.sh) so the run is not silently
+# straddling sockets and SMT siblings. saturation-sweep.sh always passes one.
+RELCORES=${RELCORES:-$(seq -s, 0 $((NCORE-1)))}
 
 run_build(){
   local name=$1; shift
@@ -99,7 +103,8 @@ PY
 
 {
 echo "MULTI-CORE TEST  N=$NCORE cores  flood inflight=$INFLIGHT junk=${JUNK}%  loopback  $(date -u +%FT%TZ)"
-echo "relay cores=0-$((NCORE-1)) sink=$SINK_CORE loadgen=$LG_CORES  ports r=$RPORT s=$SPORT"
+echo "relay cores=$RELCORES sink=$SINK_CORE loadgen=$LG_CORES  ports r=$RPORT s=$SPORT"
+if [ -r "$(dirname "$0")/topology.sh" ]; then . "$(dirname "$0")/topology.sh"; topology_summary; fi
 echo
 run_build netpoll "$BIN/relay-netpoll" -addr 127.0.0.1:$RPORT -sink 127.0.0.1:$SPORT
 echo

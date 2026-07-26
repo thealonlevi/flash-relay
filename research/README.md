@@ -22,7 +22,8 @@ research/
 │   │   └── holdgen/        held-connection (RSS-slope) load generator
 │   ├── internal/      hook (realistic decision model), proto (byte-audit wire format),
 │   │                  storm (client storm + latency sampler), sinksrv (upstream)
-│   └── harness/       gate.sh (single-box), run-sut.sh + run-2box.sh (2-box), summarize.py
+│   └── harness/       gate.sh (single-box), run-sut.sh + run-2box.sh (2-box), summarize.py,
+│                      saturation-sweep.sh + topology.sh (the collapse-cliff sweep — SATURATION-RUN.md)
 └── optimizer/    the autonomous hill-climb
     ├── score.sh        the FIXED referee — scores the current tree, with anti-cheat gates
     ├── loop.sh         one mutation per iteration: mutate → score → keep iff it won

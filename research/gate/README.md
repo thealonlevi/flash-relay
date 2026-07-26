@@ -37,6 +37,7 @@ REQLEN REPLYLEN AUTHCPU`. Results land in `research/gate/results/<timestamp>/` w
 | `cmd/loadgend` | loadgen **control daemon** (box 2): HTTP `/run` + in-process sink, so box 1 drives the 2-box run remotely |
 | `internal/storm` / `internal/sinksrv` | shared storm + sink logic |
 | `harness/` | `gate.sh` (1-box), `run-sut.sh` + `run-2box.sh` (2-box), `summarize.py`, `combine-2box.py` |
+| `harness/saturation-sweep.sh` | the collapse-cliff sweep: conn/s vs cores across the knee, NUMA/SMT-aware placement (`topology.sh`). See [`harness/SATURATION-RUN.md`](harness/SATURATION-RUN.md) |
 
 ## Reading B1
 
