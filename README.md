@@ -9,7 +9,7 @@
 **A pure-Go (`CGO_ENABLED=0`) io_uring TCP relay engine for Linux** — with **zero Go
 netpoller on any data-plane fd**. Accept a client → run a real decision hook
 (auth / blacklist / IP-alloc / dial, may block) → adopt an externally-dialed upstream
-fd → splice client ↔ upstream bidirectionally with correct half-close → close.
+fd → relay client ↔ upstream bidirectionally with correct half-close → close.
 
 The relay sibling of [`flashaccept`](https://github.com/thealonlevi/flashaccept) (a C
 accept engine that proved ~3× fewer CPU instructions/conn). Built for
@@ -54,6 +54,10 @@ The result, measured against an idiomatic netpoller relay on a single-box loopba
   allocation, the upstream dial); a slow hook parks one connection, never the ring.
 - **Correct relay semantics** — partial-send handling, proper half-close, graceful
   drain on `Stop`, idle timeout, per-direction byte counters, IPv4 + IPv6 + bind-IP.
+- **Multi-segment handshakes** — a client request can span TCP segments, so the hook
+  can return `More` to be re-invoked with the accumulated bytes (bounded by
+  `MaxReqLen`), and `Consumed` to keep handshake bytes it terminates from being
+  forwarded upstream — what a SOCKS5 / HTTP-CONNECT front end needs.
 - **TCP/IP fingerprinting (optional)** — make outbound connections present a
   **macOS / Windows / Android / iOS** TCP/IP fingerprint instead of the egress box's
   Linux stack, via an eBPF tc-egress rewrite + per-socket sockopts. See below.
@@ -66,6 +70,10 @@ go get github.com/thealonlevi/flash-relay/flashrelay
 
 Requires **Linux** (io_uring) and **Go 1.25+**. Pure Go, no cgo. The build is
 constrained to `linux && amd64`.
+
+Deploying on a fresh server — kernel/`io_uring_disabled` checks, a systemd unit, fd and
+buffer sizing, sysctls, and the container seccomp caveat — is in
+**[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
 
 ## Usage
 
@@ -158,9 +166,15 @@ internal/
   rawsock/      TCP sockets via raw syscall.Socket only — never net (the non-negotiable)
 fingerprint/    the TCP/IP fingerprint feature: eBPF tc-egress rewrite + docs + benchmark
 examples/       echo-relay — a minimal embedding
-docs/           API.md, the riptide handoff
+docs/           API.md, DEPLOYMENT.md, the riptide handoff
 research/        how it was found: the measurement rig (gate/) + autonomous optimizer
 ```
+
+The library's data path is **buffered `recv`/`send` on the ring**, not `splice(2)`: on
+the CPU-bound loopback regime zero-copy splice measured no better than recv/send (see
+[`docs/RIPTIDE-HANDOFF.md`](docs/RIPTIDE-HANDOFF.md) §6), so the library keeps the
+simpler path. A real `IORING_OP_SPLICE` relay lives in the research SUT
+(`research/gate/cmd/relay-uring -splice`) for validating the copy-bound win on real NICs.
 
 The library is the **distilled artifact**; [`research/`](research/) is **how it was
 found** — a closed-loop optimizer that mutated the io_uring engine and kept only
